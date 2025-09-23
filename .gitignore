@@ -1,0 +1,23 @@
+# Игнорировать node_modules
+node_modules/
+
+# Игнорировать файлы с переменными окружения
+.env
+.env.local
+
+# Логи
+*.log
+logs/
+
+# Артефакты сборки
+dist/
+build/
+out/
+
+# Редакторы кода
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

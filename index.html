@@ -1,0 +1,2524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учет заказов с иерархической структурой</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #444;
+        }
+        input, select, button, textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            padding: 12px 20px;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        button.i-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
+            padding: 8px 15px;
+            margin-right: 10px;
+        }
+        button.i-btn i {
+            margin-right: 5px;
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        .btn-warning {
+            background-color: #f39c12;
+        }
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+        .order-summary {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 25px;
+            border-left: 4px solid #3498db;
+        }
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .flex-row {
+            display: flex;
+            gap: 20px;
+        }
+        .flex-row > div {
+            flex: 1;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .discount-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .discount-controls input {
+            flex: 1;
+        }
+        .discount-controls button {
+            width: auto;
+        }
+        .print-only {
+            display: none;
+        }
+        .auth-container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .user-panel {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .discount-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .discount-plus {
+            background: #d4edda;
+            color: #155724;
+        }
+        .discount-minus {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .suborder-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+        }
+        .suborder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .suborder-title {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .suborder-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .position-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: flex-end;
+        }
+        .position-row input, .position-row select {
+            margin-bottom: 0;
+        }
+        .position-article {
+            flex: 2;
+        }
+        .position-name {
+            flex: 3;
+        }
+        .position-quantity {
+            flex: 1;
+        }
+        .position-price {
+            flex: 1;
+        }
+        .position-total {
+            flex: 1;
+            font-weight: bold;
+        }
+        .position-actions {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+        }
+        .search-results {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 5px;
+            display: none;
+        }
+        .search-result-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .search-result-item:hover {
+            background-color: #f0f8ff;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-section, #print-section * {
+                visibility: visible;
+            }
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                font-size: 14px;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+            .discount-badge {
+                display: none !important;
+            }
+            /* Убираем заголовок и адрес */
+            .print-header {
+                display: none !important;
+            }
+            .print-url {
+                display: none !important;
+            }
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .badge-primary {
+            background: #3498db;
+            color: white;
+        }
+        .badge-success {
+            background: #2ecc71;
+            color: white;
+        }
+        .badge-warning {
+            background: #f39c12;
+            color: white;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+        .stat-card p {
+            margin: 10px 0 0;
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .manual-product {
+            background-color: #f0f8ff;
+            border-left: 4px solid #3498db;
+        }
+        .suborder-table-header {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        .suborder-table-header td {
+            font-weight: bold;
+            border-top: 2px solid #90caf9;
+            border-bottom: 2px solid #90caf9;
+        }
+        .toggle-suborder {
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .suborder-content {
+            display: table-row;
+        }
+        .suborder-content.hidden {
+            display: none;
+        }
+        .edit-mode {
+            border: 2px solid #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+        .edit-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        /* Стили для дерева номенклатуры */
+        .nomenclature-tree ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        .nomenclature-tree > ul {
+            padding-left: 0;
+        }
+        .brand-node {
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+        }
+        .group-node {
+            margin-bottom: 5px;
+            padding: 3px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+        }
+        .product-node {
+            padding: 2px 0;
+        }
+        .toggle-node {
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .node-content.hidden {
+            display: none;
+        }
+        /* Стили для комментариев в списке заказов */
+        .order-comment {
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+        }
+        /* Стили для фильтра заказов по пользователю */
+        #userFilter {
+            margin-bottom: 15px;
+            width: auto;
+            display: inline-block;
+        }
+        .edit-product-form {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .bulk-replace-form {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Экран авторизации -->
+        <div id="authScreen" class="auth-container">
+            <h2 style="text-align: center;"><i class="fas fa-lock"></i> Авторизация</h2>
+            <div class="form-group">
+                <label for="username">Имя пользователя:</label>
+                <input type="text" id="username" placeholder="Введите имя пользователя">
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" placeholder="Введите пароль">
+            </div>
+            <button id="loginBtn"><i class="fas fa-sign-in-alt"></i> Войти</button>
+            <div id="authAlert"></div>
+        </div>
+        <!-- Основное приложение -->
+        <div id="mainApp" style="display: none;">
+            <div class="user-panel">
+                <span>Пользователь: <strong id="currentUser"></strong></span>
+                <span>Роль: <strong id="currentRole"></strong></span>
+                <button id="logoutBtn" class="i-btn"><i class="fas fa-sign-out-alt"></i> Выйти</button>
+            </div>
+            <div class="container">
+                <h1><i class="fas fa-file-invoice-dollar"></i> Учет заказов</h1>
+                <div class="stats no-print">
+                    <div class="stat-card">
+                        <h3>Загружено товаров</h3>
+                        <p id="stats-products">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Создано заказов</h3>
+                        <p id="stats-orders">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Общая сумма</h3>
+                        <p id="stats-total">0 руб.</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Брендов в базе</h3>
+                        <p id="stats-brands">0</p>
+                    </div>
+                </div>
+                <div class="tabs no-print">
+                    <div class="tab active" data-tab="orders">Заказы</div>
+                    <div class="tab" data-tab="price" id="priceTab">Прайс-лист</div>
+                    <div class="tab" data-tab="nomenclature" id="nomenclatureTab">Номенклатура</div>
+                    <div class="tab" data-tab="settings">Настройки</div>
+                </div>
+
+                <!-- Секция работы с заказами -->
+                <div class="tab-content active" id="orders-tab">
+                    <div class="section" id="orderListSection">
+                        <h2><i class="fas fa-list-alt"></i> Список заказов</h2>
+                        <div style="margin-bottom: 20px;">
+                            <button id="createNewOrderBtn" class="i-btn btn-success">
+                                <i class="fas fa-plus"></i> Создать новый заказ
+                            </button>
+                        </div>
+                        <div class="form-group no-print" id="userFilterContainer" style="display: none;">
+                            <label for="userFilter">Фильтр по пользователю:</label>
+                            <select id="userFilter">
+                                <option value="">Все пользователи</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="searchOrder" placeholder="Поиск по номеру заказа...">
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="ordersList">
+                                <thead>
+                                    <tr>
+                                        <th>Номер заказа</th>
+                                        <th>Дата заказа</th>
+                                        <th>Пользователь</th>
+                                        <th>Количество подзаказов</th>
+                                        <th>Общая сумма</th>
+                                        <th>Комментарий</th>
+                                        <th>Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Сюда будут добавляться заказы -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="section" id="orderEditSection" style="display: none;">
+                        <div class="edit-controls">
+                            <button id="backToListBtn" class="i-btn"><i class="fas fa-arrow-left"></i> Назад к списку</button>
+                            <button id="saveOrderBtn" class="i-btn btn-success"><i class="fas fa-save"></i> Сохранить заказ</button>
+                            <button id="printOrderBtn" class="i-btn"><i class="fas fa-print"></i> Печать</button>
+                            <button id="uploadPositionsBtn" class="i-btn btn-warning"><i class="fas fa-file-upload"></i> Загрузить позиции из Excel</button>
+                        </div>
+                        <h2><i class="fas fa-edit"></i> Редактирование заказа: <span id="editOrderNumber"></span></h2>
+                        <div class="flex-row">
+                            <div class="form-group">
+                                <label for="editOrderDate">Дата заказа:</label>
+                                <input type="date" id="editOrderDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="editOrderNumber">Номер заказа:</label>
+                                <input type="text" id="editOrderNumberInput" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="orderComment">Комментарий к заказу:</label>
+                            <textarea id="orderComment" rows="3" placeholder="Введите комментарий к заказу"></textarea>
+                        </div>
+                        
+                        <!-- Форма массовой замены артикулов -->
+                        <div class="bulk-replace-form no-print">
+                            <h3><i class="fas fa-exchange-alt"></i> Массовая замена артикулов</h3>
+                            <div class="flex-row">
+                                <div class="form-group">
+                                    <label for="replaceOldArticle">Старый артикул:</label>
+                                    <input type="text" id="replaceOldArticle" placeholder="Введите артикул для замены">
+                                </div>
+                                <div class="form-group">
+                                    <label for="replaceNewArticle">Новый артикул:</label>
+                                    <input type="text" id="replaceNewArticle" placeholder="Введите новый артикул">
+                                </div>
+                            </div>
+                            <button id="replaceArticlesBtn" class="i-btn btn-warning"><i class="fas fa-sync"></i> Заменить во всем заказе</button>
+                        </div>
+                        
+                        <h3><i class="fas fa-plus-circle"></i> Добавление подзаказов (групп)</h3>
+                        <div class="form-group">
+                            <label for="suborderName">Наименование подзаказа/группы:</label>
+                            <input type="text" id="suborderName" placeholder="Например: ВРУ, ГРЩ и т.д.">
+                        </div>
+                        <button id="addSuborderBtn"><i class="fas fa-folder-plus"></i> Добавить подзаказ</button>
+                        <div id="suborderAlert"></div>
+                        <h3><i class="fas fa-list"></i> Структура заказа</h3>
+                        <div id="orderStructure">
+                            <!-- Здесь будет отображаться структура заказа -->
+                        </div>
+                        
+                        <div class="order-summary">
+                            <h3>Итого по заказу: <span id="totalAmount">0.00</span> руб.</h3>
+                            <div id="discountInfo"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция загрузки прайс-листа -->
+                <div class="tab-content" id="price-tab">
+                    <div class="section">
+                        <h2><i class="fas fa-file-upload"></i> Загрузка прайс-листа</h2>
+                        <div class="form-group">
+                            <label for="priceFile">Загрузите Excel-файл с прайс-листом:</label>
+                            <input type="file" id="priceFile" accept=".xlsx, .xls">
+                            <div class="alert alert-info">
+                                <small>Файл должен содержать колонки: Артикул, Наименование, Единица измерения, Цена с НДС, Бренд, Группа</small>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="tariffDate">Дата начала действия тарифа:</label>
+                            <input type="date" id="tariffDate" required>
+                        </div>
+                        <button id="uploadPriceBtn"><i class="fas fa-upload"></i> Загрузить прайс-лист</button>
+                        <button id="addManualProductBtn" class="i-btn btn-success">
+                            <i class="fas fa-plus"></i> Добавить товар вручную
+                        </button>
+                        <div id="priceAlert"></div>
+                    </div>
+                    <div class="section">
+                        <h2><i class="fas fa-boxes"></i> Товары в прайс-листе</h2>
+                        <div class="form-group">
+                            <input type="text" id="searchProduct" placeholder="Поиск по артикулу, наименованию или бренду...">
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table id="priceListTable">
+                                <thead>
+                                    <tr>
+                                        <th>Артикул</th>
+                                        <th>Наименование</th>
+                                        <th>Бренд</th>
+                                        <th>Группа</th>
+                                        <th>Ед. изм.</th>
+                                        <th>Цена с НДС</th>
+                                        <th>Создано</th>
+                                        <th>Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Сюда будут добавляться товары из прайс-листа -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция номенклатуры -->
+                <div class="tab-content" id="nomenclature-tab">
+                    <div class="section">
+                        <h2><i class="fas fa-sitemap"></i> Иерархия номенклатуры</h2>
+                        <div class="form-group">
+                            <input type="text" id="searchNomenclature" placeholder="Поиск по артикулу или наименованию...">
+                        </div>
+                        <div id="nomenclatureTree">
+                            <div class="alert alert-info">Нет данных. Загрузите прайс-лист.</div>
+                        </div>
+                    </div>
+                    <div class="section" id="productEditSection" style="display: none;">
+                        <h2><i class="fas fa-edit"></i> Редактирование товара</h2>
+                        <div class="edit-product-form">
+                            <div class="flex-row">
+                                <div class="form-group">
+                                    <label for="editArticle">Артикул *</label>
+                                    <input type="text" id="editArticle" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editName">Наименование *</label>
+                                    <input type="text" id="editName" required>
+                                </div>
+                            </div>
+                            <div class="flex-row">
+                                <div class="form-group">
+                                    <label for="editUnit">Единица измерения *</label>
+                                    <input type="text" id="editUnit" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editPrice">Цена с НДС *</label>
+                                    <input type="number" id="editPrice" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="flex-row">
+                                <div class="form-group">
+                                    <label for="editBrand">Бренд *</label>
+                                    <input type="text" id="editBrand" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editGroup">Группа</label>
+                                    <input type="text" id="editGroup">
+                                </div>
+                            </div>
+                            <button id="saveProductBtn" class="i-btn btn-success"><i class="fas fa-save"></i> Сохранить изменения</button>
+                            <button id="cancelEditBtn" class="i-btn"><i class="fas fa-times"></i> Отмена</button>
+                            <div id="editProductAlert"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Секция настроек -->
+                <div class="tab-content" id="settings-tab">
+                    <div class="section">
+                        <h2><i class="fas fa-users-cog"></i> Управление пользователей</h2>
+                        <div id="userManagement">
+                            <div class="form-group">
+                                <label for="newUsername">Имя пользователя:</label>
+                                <input type="text" id="newUsername" placeholder="Введите имя пользователя">
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">Пароль:</label>
+                                <input type="password" id="newPassword" placeholder="Введите пароль">
+                            </div>
+                            <div class="form-group">
+                                <label for="userRole">Роль:</label>
+                                <select id="userRole">
+                                    <option value="user">Пользователь</option>
+                                    <option value="viewer">Просмотрщик</option>
+                                    <option value="admin">Администратор</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="canUploadPrice"> Разрешить загрузку прайс-листа
+                                </label>
+                            </div>
+                            <button id="addUserBtn"><i class="fas fa-user-plus"></i> Добавить пользователя</button>
+                            <div id="userAlert"></div>
+                            <h3>Список пользователей</h3>
+                            <div style="overflow-x: auto;">
+                                <table id="usersList">
+                                    <thead>
+                                        <tr>
+                                            <th>Имя пользователя</th>
+                                            <th>Роль</th>
+                                            <th>Загрузка прайса</th>
+                                            <th>Действие</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Сюда будут добавляться пользователи -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section">
+                        <h2><i class="fas fa-database"></i> Управление данными</h2>
+                        <button id="exportDataBtn" class="i-btn btn-success"><i class="fas fa-file-export"></i> Экспорт данных</button>
+                        <button id="importDataBtn" class="i-btn btn-primary"><i class="fas fa-file-import"></i> Импорт данных</button>
+                        <button id="clearDataBtn" class="i-btn btn-danger"><i class="fas fa-trash"></i> Очистить все данные</button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для создания товара -->
+        <div id="productModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3><i class="fas fa-plus"></i> Добавить товар вручную</h3>
+                <div class="form-group">
+                    <label for="manualArticle">Артикул *</label>
+                    <input type="text" id="manualArticle" required>
+                </div>
+                <div class="form-group">
+                    <label for="manualName">Наименование *</label>
+                    <input type="text" id="manualName" required>
+                </div>
+                <div class="form-group">
+                    <label for="manualUnit">Единица измерения *</label>
+                    <input type="text" id="manualUnit" required>
+                </div>
+                <div class="form-group">
+                    <label for="manualPrice">Цена с НДС *</label>
+                    <input type="number" id="manualPrice" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="manualBrand">Бренд *</label>
+                    <input type="text" id="manualBrand" required>
+                </div>
+                <div class="form-group">
+                    <label for="manualGroup">Группа</label>
+                    <input type="text" id="manualGroup">
+                </div>
+                <button id="saveManualProductBtn"><i class="fas fa-save"></i> Сохранить товар</button>
+                <div id="productAlert"></div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для загрузки позиций -->
+        <div id="uploadPositionsModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3><i class="fas fa-file-upload"></i> Загрузка позиций из Excel</h3>
+                <div class="form-group">
+                    <label for="positionsFile">Выберите Excel-файл с позициями:</label>
+                    <input type="file" id="positionsFile" accept=".xlsx, .xls">
+                    <div class="alert alert-info">
+                        <small>Файл должен содержать колонки: Артикул, Количество. Позиции будут добавлены в выбранный подзаказ.</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="uploadSuborderSelect">Выберите подзаказ:</label>
+                    <select id="uploadSuborderSelect">
+                        <option value="">-- Выберите подзаказ --</option>
+                    </select>
+                </div>
+                <button id="uploadPositionsConfirmBtn"><i class="fas fa-upload"></i> Загрузить позиции</button>
+                <div id="uploadPositionsAlert"></div>
+                <div id="uploadResults" style="display: none; margin-top: 15px;">
+                    <h4>Результаты загрузки:</h4>
+                    <div id="uploadResultsContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Секция для печати -->
+        <div id="print-section" style="display: none;">
+            <!-- Содержимое будет генерироваться динамически -->
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные для хранения данных
+        let priceList = [];
+        let currentOrder = null;
+        let allOrders = [];
+        let users = [];
+        let currentUser = null;
+        let orderCounter = 1;
+        let brandMarkups = {};
+        let currentEditingProduct = null;
+
+        // Элементы DOM
+        const authScreen = document.getElementById('authScreen');
+        const mainApp = document.getElementById('mainApp');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const authAlert = document.getElementById('authAlert');
+        const currentUserSpan = document.getElementById('currentUser');
+        const currentRoleSpan = document.getElementById('currentRole');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const priceTab = document.getElementById('priceTab');
+        const nomenclatureTab = document.getElementById('nomenclatureTab');
+        const orderListSection = document.getElementById('orderListSection');
+        const orderEditSection = document.getElementById('orderEditSection');
+        const searchOrderInput = document.getElementById('searchOrder');
+        const ordersListTable = document.getElementById('ordersList').querySelector('tbody');
+        const backToListBtn = document.getElementById('backToListBtn');
+        const saveOrderBtn = document.getElementById('saveOrderBtn');
+        const printOrderBtn = document.getElementById('printOrderBtn');
+        const uploadPositionsBtn = document.getElementById('uploadPositionsBtn');
+        const editOrderNumberSpan = document.getElementById('editOrderNumber');
+        const editOrderDateInput = document.getElementById('editOrderDate');
+        const editOrderNumberInput = document.getElementById('editOrderNumberInput');
+        const orderCommentInput = document.getElementById('orderComment');
+        const suborderNameInput = document.getElementById('suborderName');
+        const addSuborderBtn = document.getElementById('addSuborderBtn');
+        const suborderAlert = document.getElementById('suborderAlert');
+        const orderStructureDiv = document.getElementById('orderStructure');
+        const totalAmountSpan = document.getElementById('totalAmount');
+        const discountInfoDiv = document.getElementById('discountInfo');
+        const priceFileInput = document.getElementById('priceFile');
+        const tariffDateInput = document.getElementById('tariffDate');
+        const uploadPriceBtn = document.getElementById('uploadPriceBtn');
+        const priceAlert = document.getElementById('priceAlert');
+        const priceListTable = document.getElementById('priceListTable').querySelector('tbody');
+        const searchProductInput = document.getElementById('searchProduct');
+        const newUsernameInput = document.getElementById('newUsername');
+        const newPasswordInput = document.getElementById('newPassword');
+        const userRoleSelect = document.getElementById('userRole');
+        const canUploadPriceCheckbox = document.getElementById('canUploadPrice');
+        const addUserBtn = document.getElementById('addUserBtn');
+        const userAlert = document.getElementById('userAlert');
+        const usersListTable = document.getElementById('usersList').querySelector('tbody');
+        const exportDataBtn = document.getElementById('exportDataBtn');
+        const importDataBtn = document.getElementById('importDataBtn');
+        const clearDataBtn = document.getElementById('clearDataBtn');
+        const importFileInput = document.getElementById('importFile');
+        const createNewOrderBtn = document.getElementById('createNewOrderBtn');
+        const productModal = document.getElementById('productModal');
+        const manualArticleInput = document.getElementById('manualArticle');
+        const manualNameInput = document.getElementById('manualName');
+        const manualUnitInput = document.getElementById('manualUnit');
+        const manualPriceInput = document.getElementById('manualPrice');
+        const manualBrandInput = document.getElementById('manualBrand');
+        const manualGroupInput = document.getElementById('manualGroup');
+        const saveManualProductBtn = document.getElementById('saveManualProductBtn');
+        const productAlert = document.getElementById('productAlert');
+        const addManualProductBtn = document.getElementById('addManualProductBtn');
+        const modalCloseBtns = document.querySelectorAll('.close');
+        const userFilterContainer = document.getElementById('userFilterContainer');
+        const userFilterSelect = document.getElementById('userFilter');
+        const nomenclatureTreeDiv = document.getElementById('nomenclatureTree');
+        const searchNomenclatureInput = document.getElementById('searchNomenclature');
+        const productEditSection = document.getElementById('productEditSection');
+        const editArticleInput = document.getElementById('editArticle');
+        const editNameInput = document.getElementById('editName');
+        const editUnitInput = document.getElementById('editUnit');
+        const editPriceInput = document.getElementById('editPrice');
+        const editBrandInput = document.getElementById('editBrand');
+        const editGroupInput = document.getElementById('editGroup');
+        const saveProductBtn = document.getElementById('saveProductBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const editProductAlert = document.getElementById('editProductAlert');
+        const uploadPositionsModal = document.getElementById('uploadPositionsModal');
+        const positionsFileInput = document.getElementById('positionsFile');
+        const uploadSuborderSelect = document.getElementById('uploadSuborderSelect');
+        const uploadPositionsConfirmBtn = document.getElementById('uploadPositionsConfirmBtn');
+        const uploadPositionsAlert = document.getElementById('uploadPositionsAlert');
+        const uploadResultsDiv = document.getElementById('uploadResults');
+        const uploadResultsContent = document.getElementById('uploadResultsContent');
+        const replaceOldArticleInput = document.getElementById('replaceOldArticle');
+        const replaceNewArticleInput = document.getElementById('replaceNewArticle');
+        const replaceArticlesBtn = document.getElementById('replaceArticlesBtn');
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', function() {
+            // Проверяем наличие данных в localStorage
+            loadDataFromStorage();
+            
+            // Инициализация дат
+            const today = new Date().toISOString().split('T')[0];
+            tariffDateInput.value = today;
+            editOrderDateInput.value = today;
+            
+            // Настройка обработчиков событий
+            setupEventListeners();
+            
+            // Обновление статистики
+            updateStats();
+            
+            // Показать экран авторизации
+            authScreen.style.display = 'block';
+            mainApp.style.display = 'none';
+        });
+
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            // Авторизация
+            loginBtn.addEventListener('click', handleLogin);
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // Навигация по вкладкам
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+            
+            // Работа с заказами
+            createNewOrderBtn.addEventListener('click', createNewOrder);
+            backToListBtn.addEventListener('click', showOrderList);
+            saveOrderBtn.addEventListener('click', saveCurrentOrder);
+            printOrderBtn.addEventListener('click', printOrder);
+            uploadPositionsBtn.addEventListener('click', showUploadPositionsModal);
+            searchOrderInput.addEventListener('input', filterOrders);
+            addSuborderBtn.addEventListener('click', addSuborder);
+            
+            // Работа с прайс-листом
+            uploadPriceBtn.addEventListener('click', uploadPriceList);
+            searchProductInput.addEventListener('input', filterProducts);
+            addManualProductBtn.addEventListener('click', showProductModal);
+            saveManualProductBtn.addEventListener('click', saveManualProduct);
+            
+            // Управление пользователями
+            addUserBtn.addEventListener('click', addUser);
+            
+            // Управление данными
+            exportDataBtn.addEventListener('click', exportData);
+            importDataBtn.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', importData);
+            clearDataBtn.addEventListener('click', clearData);
+            
+            // Закрытие модальных окон
+            modalCloseBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+            
+            // Поиск в номенклатуре
+            searchNomenclatureInput.addEventListener('input', filterNomenclature);
+            
+            // Редактирование товара
+            saveProductBtn.addEventListener('click', saveProductChanges);
+            cancelEditBtn.addEventListener('click', cancelProductEdit);
+            
+            // Загрузка позиций
+            uploadPositionsConfirmBtn.addEventListener('click', uploadPositionsFromFile);
+            
+            // Массовая замена артикулов
+            replaceArticlesBtn.addEventListener('click', replaceArticlesInOrder);
+            
+            // Закрытие модальных окон по клику вне их
+            window.addEventListener('click', function(event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+        }
+
+        // Функции авторизации
+        function handleLogin() {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            if (!username || !password) {
+                showAlert(authAlert, 'Введите имя пользователя и пароль', 'error');
+                return;
+            }
+            
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (!user) {
+                showAlert(authAlert, 'Неверное имя пользователя или пароль', 'error');
+                return;
+            }
+            
+            currentUser = user;
+            authScreen.style.display = 'none';
+            mainApp.style.display = 'block';
+            
+            currentUserSpan.textContent = currentUser.username;
+            currentRoleSpan.textContent = getRoleDisplayName(currentUser.role);
+            
+            // Обновление интерфейса в зависимости от роли
+            updateUIForRole();
+            
+            // Загрузка данных
+            loadDataFromStorage();
+            updateStats();
+            renderOrdersList();
+            renderPriceList();
+            renderNomenclatureTree();
+            renderUsersList();
+            
+            showAlert(authAlert, '', 'success', true);
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            authScreen.style.display = 'block';
+            mainApp.style.display = 'none';
+            usernameInput.value = '';
+            passwordInput.value = '';
+        }
+
+        function updateUIForRole() {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            const canUpload = currentUser && currentUser.canUploadPrice;
+            
+            // Показываем/скрываем вкладки в зависимости от прав
+            priceTab.style.display = (isAdmin || canUpload) ? 'block' : 'none';
+            nomenclatureTab.style.display = (isAdmin || canUpload) ? 'block' : 'none';
+            
+            // Показываем/скрываем элементы управления
+            document.getElementById('priceFile').disabled = !(isAdmin || canUpload);
+            document.getElementById('uploadPriceBtn').disabled = !(isAdmin || canUpload);
+            document.getElementById('addManualProductBtn').disabled = !(isAdmin || canUpload);
+            
+            // Показываем/скрываем раздел управления пользователями
+            document.getElementById('settings-tab').style.display = isAdmin ? 'block' : 'none';
+            
+            // Показываем/скрываем фильтр по пользователям
+            userFilterContainer.style.display = isAdmin ? 'block' : 'none';
+            
+            // Обновляем список пользователей для фильтра
+            if (isAdmin) {
+                updateUserFilter();
+            }
+        }
+
+        function getRoleDisplayName(role) {
+            switch(role) {
+                case 'admin': return 'Администратор';
+                case 'viewer': return 'Просмотрщик';
+                default: return 'Пользователь';
+            }
+        }
+
+        // Функции работы с данными
+        function loadDataFromStorage() {
+            priceList = JSON.parse(localStorage.getItem('priceList')) || [];
+            allOrders = JSON.parse(localStorage.getItem('allOrders')) || [];
+            users = JSON.parse(localStorage.getItem('users')) || [];
+            brandMarkups = JSON.parse(localStorage.getItem('brandMarkups')) || {};
+            orderCounter = parseInt(localStorage.getItem('orderCounter')) || 1;
+            
+            // Если пользователей нет, создаем администратора по умолчанию
+            if (users.length === 0) {
+                users.push({
+                    username: 'admin',
+                    password: 'admin',
+                    role: 'admin',
+                    canUploadPrice: true
+                });
+                saveUsersToStorage();
+            }
+        }
+
+        function savePriceListToStorage() {
+            localStorage.setItem('priceList', JSON.stringify(priceList));
+        }
+
+        function saveOrdersToStorage() {
+            localStorage.setItem('allOrders', JSON.stringify(allOrders));
+        }
+
+        function saveUsersToStorage() {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        function saveBrandMarkupsToStorage() {
+            localStorage.setItem('brandMarkups', JSON.stringify(brandMarkups));
+        }
+
+        function saveOrderCounterToStorage() {
+            localStorage.setItem('orderCounter', orderCounter.toString());
+        }
+
+        // Функции работы с заказами
+        function createNewOrder() {
+            currentOrder = {
+                number: `ORD-${orderCounter.toString().padStart(4, '0')}`,
+                date: new Date().toISOString().split('T')[0],
+                user: currentUser.username,
+                suborders: [],
+                comment: ''
+            };
+            
+            orderCounter++;
+            saveOrderCounterToStorage();
+            
+            editOrderNumberSpan.textContent = currentOrder.number;
+            editOrderDateInput.value = currentOrder.date;
+            editOrderNumberInput.value = currentOrder.number;
+            orderCommentInput.value = currentOrder.comment;
+            orderStructureDiv.innerHTML = '';
+            totalAmountSpan.textContent = '0.00';
+            discountInfoDiv.innerHTML = '';
+            
+            orderListSection.style.display = 'none';
+            orderEditSection.style.display = 'block';
+        }
+
+        function showOrderList() {
+            orderListSection.style.display = 'block';
+            orderEditSection.style.display = 'none';
+            currentOrder = null;
+            renderOrdersList();
+        }
+
+        function saveCurrentOrder() {
+            if (!currentOrder) return;
+            
+            currentOrder.date = editOrderDateInput.value;
+            currentOrder.comment = orderCommentInput.value;
+            
+            // Обновляем итоговую сумму
+            updateOrderTotal();
+            
+            // Сохраняем заказ в список
+            const existingIndex = allOrders.findIndex(o => o.number === currentOrder.number);
+            if (existingIndex >= 0) {
+                allOrders[existingIndex] = currentOrder;
+            } else {
+                allOrders.push(currentOrder);
+            }
+            
+            saveOrdersToStorage();
+            updateStats();
+            
+            showOrderList();
+        }
+
+        function addSuborder() {
+            const name = suborderNameInput.value.trim();
+            if (!name) {
+                showAlert(suborderAlert, 'Введите наименование подзаказа', 'error');
+                return;
+            }
+            
+            if (!currentOrder) return;
+            
+            currentOrder.suborders.push({
+                id: Date.now().toString(),
+                name: name,
+                positions: []
+            });
+            
+            suborderNameInput.value = '';
+            showAlert(suborderAlert, 'Подзаказ добавлен', 'success');
+            renderOrderStructure();
+        }
+
+        function renderOrderStructure() {
+            if (!currentOrder) return;
+            
+            orderStructureDiv.innerHTML = '';
+            
+            currentOrder.suborders.forEach((suborder, index) => {
+                const suborderDiv = document.createElement('div');
+                suborderDiv.className = 'suborder-panel';
+                suborderDiv.innerHTML = `
+                    <div class="suborder-header">
+                        <div class="suborder-title">
+                            <i class="fas fa-folder toggle-suborder" data-suborder-id="${suborder.id}"></i>
+                            ${suborder.name}
+                        </div>
+                        <div class="suborder-controls">
+                            <button class="i-btn btn-danger delete-suborder" data-index="${index}">
+                                <i class="fas fa-trash"></i> Удалить
+                            </button>
+                        </div>
+                    </div>
+                    <div class="suborder-content" id="suborder-${suborder.id}">
+                        <div class="position-row">
+                            <div class="position-article">
+                                <label>Артикул</label>
+                                <input type="text" class="article-input" placeholder="Введите артикул" data-suborder-id="${suborder.id}">
+                                <div class="search-results" id="search-results-${suborder.id}"></div>
+                            </div>
+                            <div class="position-name">
+                                <label>Наименование</label>
+                                <input type="text" class="name-input" placeholder="Наименование появится автоматически" readonly>
+                            </div>
+                            <div class="position-quantity">
+                                <label>Количество</label>
+                                <input type="number" class="quantity-input" value="1" min="1" data-suborder-id="${suborder.id}">
+                            </div>
+                            <div class="position-price">
+                                <label>Цена за ед.</label>
+                                <input type="number" class="price-input" step="0.01" readonly>
+                            </div>
+                            <div class="position-total">
+                                <label>Сумма</label>
+                                <div class="total-display">0.00</div>
+                            </div>
+                            <div class="position-actions">
+                                <label>&nbsp;</label>
+                                <button class="i-btn btn-success add-position" data-suborder-id="${suborder.id}">
+                                    <i class="fas fa-plus"></i> Добавить
+                                </button>
+                            </div>
+                        </div>
+                        <table style="width: 100%; margin-top: 10px;">
+                            <thead>
+                                <tr>
+                                    <th>Артикул</th>
+                                    <th>Наименование</th>
+                                    <th>Количество</th>
+                                    <th>Цена за ед.</th>
+                                    <th>Сумма</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-${suborder.id}">
+                                <!-- Позиции будут добавляться сюда -->
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                orderStructureDiv.appendChild(suborderDiv);
+            });
+            
+            // Добавляем обработчики событий
+            addOrderStructureEventListeners();
+            updateOrderTotal();
+        }
+
+        function addOrderStructureEventListeners() {
+            // Обработчики для сворачивания/разворачивания подзаказов
+            document.querySelectorAll('.toggle-suborder').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const suborderId = this.dataset.suborderId;
+                    const content = document.getElementById(`suborder-${suborderId}`);
+                    content.classList.toggle('hidden');
+                    this.classList.toggle('fa-folder');
+                    this.classList.toggle('fa-folder-open');
+                });
+            });
+            
+            // Обработчики для удаления подзаказов
+            document.querySelectorAll('.delete-suborder').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    if (confirm('Вы уверены, что хотите удалить этот подзаказ?')) {
+                        currentOrder.suborders.splice(index, 1);
+                        renderOrderStructure();
+                    }
+                });
+            });
+            
+            // Обработчики для поиска товаров
+            document.querySelectorAll('.article-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    const searchTerm = this.value.trim();
+                    const suborderId = this.dataset.suborderId;
+                    const resultsDiv = document.getElementById(`search-results-${suborderId}`);
+                    
+                    if (searchTerm.length < 2) {
+                        resultsDiv.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Поиск по артикулу (без учета регистра) и по имени
+                    const results = priceList.filter(product => 
+                        product.article.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).slice(0, 10);
+                    
+                    if (results.length > 0) {
+                        resultsDiv.innerHTML = '';
+                        results.forEach(product => {
+                            const item = document.createElement('div');
+                            item.className = 'search-result-item';
+                            item.textContent = `${product.article} - ${product.name}`;
+                            item.dataset.article = product.article;
+                            item.addEventListener('click', function() {
+                                input.value = product.article;
+                                resultsDiv.style.display = 'none';
+                                
+                                // Заполняем остальные поля
+                                const row = input.closest('.position-row');
+                                row.querySelector('.name-input').value = product.name;
+                                row.querySelector('.price-input').value = product.price;
+                                
+                                // Обновляем сумму
+                                updatePositionTotal(row);
+                            });
+                            resultsDiv.appendChild(item);
+                        });
+                        resultsDiv.style.display = 'block';
+                    } else {
+                        resultsDiv.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Обработчики для изменения количества
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.addEventListener('input', function() {
+                    const row = this.closest('.position-row');
+                    updatePositionTotal(row);
+                });
+            });
+            
+            // Обработчики для добавления позиций
+            document.querySelectorAll('.add-position').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const suborderId = this.dataset.suborderId;
+                    const row = this.closest('.position-row');
+                    const articleInput = row.querySelector('.article-input');
+                    const nameInput = row.querySelector('.name-input');
+                    const quantityInput = row.querySelector('.quantity-input');
+                    const priceInput = row.querySelector('.price-input');
+                    
+                    const article = articleInput.value.trim();
+                    const name = nameInput.value.trim();
+                    const quantity = parseInt(quantityInput.value);
+                    const price = parseFloat(priceInput.value);
+                    
+                    if (!article || !name || isNaN(quantity) || quantity <= 0 || isNaN(price) || price <= 0) {
+                        alert('Заполните все поля корректно');
+                        return;
+                    }
+                    
+                    // Проверяем, существует ли товар с таким артикулом
+                    const product = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
+                    if (!product) {
+                        alert('Товар с таким артикулом не найден в номенклатуре');
+                        return;
+                    }
+                    
+                    // Находим подзаказ
+                    const suborder = currentOrder.suborders.find(s => s.id === suborderId);
+                    if (!suborder) return;
+                    
+                    // Добавляем позицию
+                    suborder.positions.push({
+                        article: product.article, // Сохраняем оригинальный артикул
+                        name: product.name,
+                        quantity: quantity,
+                        price: price,
+                        total: quantity * price
+                    });
+                    
+                    // Очищаем поля ввода
+                    articleInput.value = '';
+                    nameInput.value = '';
+                    quantityInput.value = '1';
+                    priceInput.value = '';
+                    row.querySelector('.total-display').textContent = '0.00';
+                    
+                    // Обновляем таблицу позиций
+                    renderSuborderPositions(suborderId);
+                    updateOrderTotal();
+                });
+            });
+        }
+
+        function renderSuborderPositions(suborderId) {
+            const suborder = currentOrder.suborders.find(s => s.id === suborderId);
+            if (!suborder) return;
+            
+            const tbody = document.getElementById(`positions-${suborderId}`);
+            tbody.innerHTML = '';
+            
+            suborder.positions.forEach((position, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${position.article}</td>
+                    <td>${position.name}</td>
+                    <td>${position.quantity}</td>
+                    <td>${position.price.toFixed(2)}</td>
+                    <td>${position.total.toFixed(2)}</td>
+                    <td>
+                        <button class="i-btn btn-danger delete-position" data-suborder-id="${suborderId}" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="i-btn btn-warning edit-position" data-suborder-id="${suborderId}" data-index="${index}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Добавляем обработчики для удаления позиций
+            document.querySelectorAll('.delete-position').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const suborderId = this.dataset.suborderId;
+                    const index = parseInt(this.dataset.index);
+                    
+                    if (confirm('Вы уверены, что хотите удалить эту позицию?')) {
+                        const suborder = currentOrder.suborders.find(s => s.id === suborderId);
+                        if (suborder) {
+                            suborder.positions.splice(index, 1);
+                            renderSuborderPositions(suborderId);
+                            updateOrderTotal();
+                        }
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для редактирования позиций
+            document.querySelectorAll('.edit-position').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const suborderId = this.dataset.suborderId;
+                    const index = parseInt(this.dataset.index);
+                    
+                    const suborder = currentOrder.suborders.find(s => s.id === suborderId);
+                    if (!suborder) return;
+                    
+                    const position = suborder.positions[index];
+                    
+                    // Заполняем поля ввода для редактирования
+                    const row = this.closest('.position-row');
+                    row.querySelector('.article-input').value = position.article;
+                    row.querySelector('.name-input').value = position.name;
+                    row.querySelector('.quantity-input').value = position.quantity;
+                    row.querySelector('.price-input').value = position.price;
+                    
+                    // Удаляем старую позицию
+                    suborder.positions.splice(index, 1);
+                    renderSuborderPositions(suborderId);
+                    updateOrderTotal();
+                });
+            });
+        }
+
+        function updatePositionTotal(row) {
+            const quantity = parseInt(row.querySelector('.quantity-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const total = quantity * price;
+            row.querySelector('.total-display').textContent = total.toFixed(2);
+        }
+
+        function updateOrderTotal() {
+            if (!currentOrder) return;
+            
+            let total = 0;
+            currentOrder.suborders.forEach(suborder => {
+                suborder.positions.forEach(position => {
+                    total += position.total;
+                });
+            });
+            
+            totalAmountSpan.textContent = total.toFixed(2);
+            
+            // Обновляем информацию о скидках
+            updateDiscountInfo(total);
+        }
+
+        function updateDiscountInfo(total) {
+            // Здесь можно добавить логику расчета скидок
+            discountInfoDiv.innerHTML = '';
+        }
+
+        function renderOrdersList() {
+            ordersListTable.innerHTML = '';
+            
+            let filteredOrders = allOrders;
+            
+            // Фильтрация по пользователю (для администраторов)
+            if (currentUser && currentUser.role === 'admin' && userFilterSelect.value) {
+                filteredOrders = allOrders.filter(order => order.user === userFilterSelect.value);
+            }
+            
+            // Фильтрация по поисковому запросу
+            const searchTerm = searchOrderInput.value.toLowerCase();
+            if (searchTerm) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.number.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            if (filteredOrders.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="7" style="text-align: center;">Заказы не найдены</td>`;
+                ordersListTable.appendChild(row);
+                return;
+            }
+            
+            filteredOrders.forEach(order => {
+                const row = document.createElement('tr');
+                const suborderCount = order.suborders ? order.suborders.length : 0;
+                const totalAmount = calculateOrderTotal(order);
+                
+                row.innerHTML = `
+                    <td>${order.number}</td>
+                    <td>${order.date}</td>
+                    <td>${order.user}</td>
+                    <td>${suborderCount}</td>
+                    <td>${totalAmount.toFixed(2)} руб.</td>
+                    <td class="order-comment">${order.comment || ''}</td>
+                    <td>
+                        <button class="i-btn edit-order" data-order-number="${order.number}">
+                            <i class="fas fa-edit"></i> Редактировать
+                        </button>
+                        <button class="i-btn btn-danger delete-order" data-order-number="${order.number}">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </td>
+                `;
+                ordersListTable.appendChild(row);
+            });
+            
+            // Добавляем обработчики для редактирования заказов
+            document.querySelectorAll('.edit-order').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderNumber = this.dataset.orderNumber;
+                    editOrder(orderNumber);
+                });
+            });
+            
+            // Добавляем обработчики для удаления заказов
+            document.querySelectorAll('.delete-order').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderNumber = this.dataset.orderNumber;
+                    deleteOrder(orderNumber);
+                });
+            });
+        }
+
+        function calculateOrderTotal(order) {
+            let total = 0;
+            if (order.suborders) {
+                order.suborders.forEach(suborder => {
+                    if (suborder.positions) {
+                        suborder.positions.forEach(position => {
+                            total += position.total || 0;
+                        });
+                    }
+                });
+            }
+            return total;
+        }
+
+        function editOrder(orderNumber) {
+            currentOrder = allOrders.find(o => o.number === orderNumber);
+            if (!currentOrder) return;
+            
+            editOrderNumberSpan.textContent = currentOrder.number;
+            editOrderDateInput.value = currentOrder.date;
+            editOrderNumberInput.value = currentOrder.number;
+            orderCommentInput.value = currentOrder.comment || '';
+            
+            renderOrderStructure();
+            
+            orderListSection.style.display = 'none';
+            orderEditSection.style.display = 'block';
+        }
+
+        function deleteOrder(orderNumber) {
+            if (!confirm('Вы уверены, что хотите удалить этот заказ?')) return;
+            
+            allOrders = allOrders.filter(o => o.number !== orderNumber);
+            saveOrdersToStorage();
+            updateStats();
+            renderOrdersList();
+        }
+
+        function filterOrders() {
+            renderOrdersList();
+        }
+
+        function updateUserFilter() {
+            const uniqueUsers = [...new Set(allOrders.map(order => order.user))];
+            userFilterSelect.innerHTML = '<option value="">Все пользователи</option>';
+            
+            uniqueUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = user;
+                userFilterSelect.appendChild(option);
+            });
+            
+            userFilterSelect.addEventListener('change', renderOrdersList);
+        }
+
+        // Функции работы с прайс-листом
+        function uploadPriceList() {
+            const file = priceFileInput.files[0];
+            const tariffDate = tariffDateInput.value;
+            
+            if (!file) {
+                showAlert(priceAlert, 'Выберите файл для загрузки', 'error');
+                return;
+            }
+            
+            if (!tariffDate) {
+                showAlert(priceAlert, 'Укажите дату начала действия тарифа', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (jsonData.length === 0) {
+                        showAlert(priceAlert, 'Файл не содержит данных', 'error');
+                        return;
+                    }
+                    
+                    // Проверяем наличие обязательных колонок
+                    const firstRow = jsonData[0];
+                    const requiredColumns = ['Артикул', 'Наименование', 'Единица измерения', 'Цена с НДС', 'Бренд'];
+                    const missingColumns = requiredColumns.filter(col => !firstRow.hasOwnProperty(col));
+                    
+                    if (missingColumns.length > 0) {
+                        showAlert(priceAlert, `Отсутствуют обязательные колонки: ${missingColumns.join(', ')}`, 'error');
+                        return;
+                    }
+                    
+                    // Обрабатываем данные
+                    const newProducts = jsonData.map(row => ({
+                        article: String(row['Артикул'] || '').trim(),
+                        name: String(row['Наименование'] || '').trim(),
+                        unit: String(row['Единица измерения'] || '').trim(),
+                        price: parseFloat(row['Цена с НДС']) || 0,
+                        brand: String(row['Бренд'] || '').trim(),
+                        group: String(row['Группа'] || '').trim(),
+                        tariffDate: tariffDate,
+                        createdAt: new Date().toISOString()
+                    })).filter(product => product.article && product.name && product.price > 0);
+                    
+                    if (newProducts.length === 0) {
+                        showAlert(priceAlert, 'Не удалось извлечь корректные данные из файла', 'error');
+                        return;
+                    }
+                    
+                    // Обновляем прайс-лист
+                    priceList = [...priceList, ...newProducts];
+                    savePriceListToStorage();
+                    
+                    showAlert(priceAlert, `Успешно загружено ${newProducts.length} товаров`, 'success');
+                    renderPriceList();
+                    renderNomenclatureTree();
+                    updateStats();
+                    
+                    // Очищаем поле файла
+                    priceFileInput.value = '';
+                    
+                } catch (error) {
+                    console.error('Ошибка при обработке файла:', error);
+                    showAlert(priceAlert, 'Ошибка при обработке файла: ' + error.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderPriceList() {
+            priceListTable.innerHTML = '';
+            
+            if (priceList.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="8" style="text-align: center;">Нет данных</td>`;
+                priceListTable.appendChild(row);
+                return;
+            }
+            
+            // Сортируем по дате создания (сначала новые)
+            const sortedList = [...priceList].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            
+            sortedList.forEach((product, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.article}</td>
+                    <td>${product.name}</td>
+                    <td>${product.brand}</td>
+                    <td>${product.group}</td>
+                    <td>${product.unit}</td>
+                    <td>${product.price.toFixed(2)}</td>
+                    <td>${new Date(product.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <button class="i-btn edit-product" data-index="${index}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="i-btn btn-danger delete-product" data-index="${index}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                priceListTable.appendChild(row);
+            });
+            
+            // Добавляем обработчики для редактирования товаров
+            document.querySelectorAll('.edit-product').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    editProduct(index);
+                });
+            });
+            
+            // Добавляем обработчики для удаления товаров
+            document.querySelectorAll('.delete-product').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    deleteProduct(index);
+                });
+            });
+        }
+
+        function filterProducts() {
+            const searchTerm = searchProductInput.value.toLowerCase();
+            const rows = priceListTable.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+                
+                const article = cells[0].textContent.toLowerCase();
+                const name = cells[1].textContent.toLowerCase();
+                const brand = cells[2].textContent.toLowerCase();
+                
+                if (article.includes(searchTerm) || name.includes(searchTerm) || brand.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function showProductModal() {
+            manualArticleInput.value = '';
+            manualNameInput.value = '';
+            manualUnitInput.value = '';
+            manualPriceInput.value = '';
+            manualBrandInput.value = '';
+            manualGroupInput.value = '';
+            productModal.style.display = 'flex';
+        }
+
+        function saveManualProduct() {
+            const article = manualArticleInput.value.trim();
+            const name = manualNameInput.value.trim();
+            const unit = manualUnitInput.value.trim();
+            const price = parseFloat(manualPriceInput.value);
+            const brand = manualBrandInput.value.trim();
+            const group = manualGroupInput.value.trim();
+            
+            if (!article || !name || !unit || isNaN(price) || price <= 0 || !brand) {
+                showAlert(productAlert, 'Заполните все обязательные поля корректно', 'error');
+                return;
+            }
+            
+            // Проверяем, нет ли уже товара с таким артикулом
+            const existingProduct = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
+            if (existingProduct) {
+                showAlert(productAlert, 'Товар с таким артикулом уже существует', 'error');
+                return;
+            }
+            
+            const newProduct = {
+                article: article,
+                name: name,
+                unit: unit,
+                price: price,
+                brand: brand,
+                group: group,
+                tariffDate: new Date().toISOString().split('T')[0],
+                createdAt: new Date().toISOString(),
+                manual: true
+            };
+            
+            priceList.push(newProduct);
+            savePriceListToStorage();
+            
+            showAlert(productAlert, 'Товар успешно добавлен', 'success');
+            renderPriceList();
+            renderNomenclatureTree();
+            updateStats();
+            
+            // Закрываем модальное окно через секунду
+            setTimeout(() => {
+                productModal.style.display = 'none';
+            }, 1000);
+        }
+
+        function editProduct(index) {
+            if (index < 0 || index >= priceList.length) return;
+            
+            currentEditingProduct = priceList[index];
+            
+            editArticleInput.value = currentEditingProduct.article;
+            editNameInput.value = currentEditingProduct.name;
+            editUnitInput.value = currentEditingProduct.unit;
+            editPriceInput.value = currentEditingProduct.price;
+            editBrandInput.value = currentEditingProduct.brand;
+            editGroupInput.value = currentEditingProduct.group || '';
+            
+            productEditSection.style.display = 'block';
+            document.getElementById('nomenclature-tab').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function saveProductChanges() {
+            if (!currentEditingProduct) return;
+            
+            const article = editArticleInput.value.trim();
+            const name = editNameInput.value.trim();
+            const unit = editUnitInput.value.trim();
+            const price = parseFloat(editPriceInput.value);
+            const brand = editBrandInput.value.trim();
+            const group = editGroupInput.value.trim();
+            
+            if (!article || !name || !unit || isNaN(price) || price <= 0 || !brand) {
+                showAlert(editProductAlert, 'Заполните все обязательные поля корректно', 'error');
+                return;
+            }
+            
+            // Проверяем, нет ли другого товара с таким артикулом
+            const existingProduct = priceList.find(p => 
+                p.article.toLowerCase() === article.toLowerCase() && p !== currentEditingProduct
+            );
+            if (existingProduct) {
+                showAlert(editProductAlert, 'Другой товар с таким артикулом уже существует', 'error');
+                return;
+            }
+            
+            // Обновляем товар
+            currentEditingProduct.article = article;
+            currentEditingProduct.name = name;
+            currentEditingProduct.unit = unit;
+            currentEditingProduct.price = price;
+            currentEditingProduct.brand = brand;
+            currentEditingProduct.group = group;
+            
+            savePriceListToStorage();
+            
+            showAlert(editProductAlert, 'Товар успешно обновлен', 'success');
+            renderPriceList();
+            renderNomenclatureTree();
+            
+            // Закрываем форму редактирования через секунду
+            setTimeout(() => {
+                cancelProductEdit();
+            }, 1000);
+        }
+
+        function cancelProductEdit() {
+            currentEditingProduct = null;
+            productEditSection.style.display = 'none';
+        }
+
+        function deleteProduct(index) {
+            if (index < 0 || index >= priceList.length) return;
+            
+            if (!confirm('Вы уверены, что хотите удалить этот товар?')) return;
+            
+            priceList.splice(index, 1);
+            savePriceListToStorage();
+            renderPriceList();
+            renderNomenclatureTree();
+            updateStats();
+        }
+
+        // Функции работы с номенклатурой
+        function renderNomenclatureTree() {
+            if (priceList.length === 0) {
+                nomenclatureTreeDiv.innerHTML = '<div class="alert alert-info">Нет данных. Загрузите прайс-лист.</div>';
+                return;
+            }
+            
+            // Группируем товары по брендам и группам
+            const brands = {};
+            priceList.forEach(product => {
+                if (!brands[product.brand]) {
+                    brands[product.brand] = {};
+                }
+                
+                const group = product.group || 'Без группы';
+                if (!brands[product.brand][group]) {
+                    brands[product.brand][group] = [];
+                }
+                
+                brands[product.brand][group].push(product);
+            });
+            
+            let html = '<div class="nomenclature-tree"><ul>';
+            
+            Object.keys(brands).sort().forEach(brand => {
+                html += `
+                    <li class="brand-node">
+                        <span class="toggle-node"><i class="fas fa-chevron-right"></i></span>
+                        <strong>${brand}</strong>
+                        <ul class="node-content">
+                `;
+                
+                Object.keys(brands[brand]).sort().forEach(group => {
+                    html += `
+                        <li class="group-node">
+                            <span class="toggle-node"><i class="fas fa-chevron-right"></i></span>
+                            <strong>${group}</strong>
+                            <ul class="node-content">
+                    `;
+                    
+                    brands[brand][group].forEach(product => {
+                        html += `
+                            <li class="product-node">
+                                <span>${product.article} - ${product.name} (${product.price.toFixed(2)} руб.)</span>
+                                <button class="i-btn edit-product-from-tree" data-article="${product.article}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </li>
+                        `;
+                    });
+                    
+                    html += '</ul></li>';
+                });
+                
+                html += '</ul></li>';
+            });
+            
+            html += '</ul></div>';
+            nomenclatureTreeDiv.innerHTML = html;
+            
+            // Добавляем обработчики для сворачивания/разворачивания узлов
+            document.querySelectorAll('.toggle-node').forEach(node => {
+                node.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    if (content && content.classList.contains('node-content')) {
+                        content.classList.toggle('hidden');
+                        const icon = this.querySelector('i');
+                        icon.classList.toggle('fa-chevron-right');
+                        icon.classList.toggle('fa-chevron-down');
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для редактирования товаров из дерева
+            document.querySelectorAll('.edit-product-from-tree').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const article = this.dataset.article;
+                    const index = priceList.findIndex(p => p.article === article);
+                    if (index >= 0) {
+                        editProduct(index);
+                    }
+                });
+            });
+        }
+
+        function filterNomenclature() {
+            const searchTerm = searchNomenclatureInput.value.toLowerCase();
+            const nodes = nomenclatureTreeDiv.querySelectorAll('.product-node');
+            
+            if (!searchTerm) {
+                nodes.forEach(node => {
+                    node.style.display = '';
+                });
+                return;
+            }
+            
+            nodes.forEach(node => {
+                const text = node.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    node.style.display = '';
+                } else {
+                    node.style.display = 'none';
+                }
+            });
+        }
+
+        // Функции управления пользователями
+        function addUser() {
+            const username = newUsernameInput.value.trim();
+            const password = newPasswordInput.value.trim();
+            const role = userRoleSelect.value;
+            const canUploadPrice = canUploadPriceCheckbox.checked;
+            
+            if (!username || !password) {
+                showAlert(userAlert, 'Введите имя пользователя и пароль', 'error');
+                return;
+            }
+            
+            if (users.find(u => u.username === username)) {
+                showAlert(userAlert, 'Пользователь с таким именем уже существует', 'error');
+                return;
+            }
+            
+            users.push({
+                username: username,
+                password: password,
+                role: role,
+                canUploadPrice: canUploadPrice
+            });
+            
+            saveUsersToStorage();
+            renderUsersList();
+            
+            showAlert(userAlert, 'Пользователь успешно добавлен', 'success');
+            newUsernameInput.value = '';
+            newPasswordInput.value = '';
+        }
+
+        function renderUsersList() {
+            usersListTable.innerHTML = '';
+            
+            if (users.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="4" style="text-align: center;">Нет пользователей</td>`;
+                usersListTable.appendChild(row);
+                return;
+            }
+            
+            users.forEach((user, index) => {
+                // Не показываем текущего пользователя в списке для удаления
+                if (currentUser && user.username === currentUser.username) return;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.username}</td>
+                    <td>${getRoleDisplayName(user.role)}</td>
+                    <td>${user.canUploadPrice ? 'Да' : 'Нет'}</td>
+                    <td>
+                        <button class="i-btn btn-danger delete-user" data-index="${index}">
+                            <i class="fas fa-trash"></i> Удалить
+                        </button>
+                    </td>
+                `;
+                usersListTable.appendChild(row);
+            });
+            
+            // Добавляем обработчики для удаления пользователей
+            document.querySelectorAll('.delete-user').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    deleteUser(index);
+                });
+            });
+        }
+
+        function deleteUser(index) {
+            if (index < 0 || index >= users.length) return;
+            
+            if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
+            
+            users.splice(index, 1);
+            saveUsersToStorage();
+            renderUsersList();
+        }
+
+        // Функции управления данными
+        function exportData() {
+            const data = {
+                priceList: priceList,
+                allOrders: allOrders,
+                users: users,
+                brandMarkups: brandMarkups,
+                orderCounter: orderCounter,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `order_data_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const file = importFileInput.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm('Это действие перезапишет все текущие данные. Продолжить?')) {
+                        priceList = data.priceList || [];
+                        allOrders = data.allOrders || [];
+                        users = data.users || [];
+                        brandMarkups = data.brandMarkups || {};
+                        orderCounter = data.orderCounter || 1;
+                        
+                        savePriceListToStorage();
+                        saveOrdersToStorage();
+                        saveUsersToStorage();
+                        saveBrandMarkupsToStorage();
+                        saveOrderCounterToStorage();
+                        
+                        updateStats();
+                        renderOrdersList();
+                        renderPriceList();
+                        renderNomenclatureTree();
+                        renderUsersList();
+                        
+                        alert('Данные успешно импортированы');
+                    }
+                } catch (error) {
+                    console.error('Ошибка при импорте данных:', error);
+                    alert('Ошибка при импорте данных: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            importFileInput.value = '';
+        }
+
+        function clearData() {
+            if (confirm('Вы уверены, что хотите удалить все данные? Это действие нельзя отменить.')) {
+                localStorage.clear();
+                priceList = [];
+                allOrders = [];
+                users = [];
+                brandMarkups = {};
+                orderCounter = 1;
+                
+                // Создаем администратора по умолчанию
+                users.push({
+                    username: 'admin',
+                    password: 'admin',
+                    role: 'admin',
+                    canUploadPrice: true
+                });
+                saveUsersToStorage();
+                
+                updateStats();
+                renderOrdersList();
+                renderPriceList();
+                renderNomenclatureTree();
+                renderUsersList();
+                
+                alert('Все данные удалены');
+            }
+        }
+
+        // Функции для печати
+        function printOrder() {
+            if (!currentOrder) return;
+            
+            const printSection = document.getElementById('print-section');
+            printSection.innerHTML = '';
+            
+            let html = `
+                <div class="print-header">
+                    <h1>Заказ № ${currentOrder.number}</h1>
+                    <p>Дата заказа: ${currentOrder.date}</p>
+                    <p>Пользователь: ${currentOrder.user}</p>
+                    ${currentOrder.comment ? `<p>Комментарий: ${currentOrder.comment}</p>` : ''}
+                    <hr>
+                </div>
+            `;
+            
+            currentOrder.suborders.forEach((suborder, index) => {
+                html += `
+                    <h2>${index + 1}. ${suborder.name}</h2>
+                    <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Артикул</th>
+                                <th>Наименование</th>
+                                <th>Кол-во</th>
+                                <th>Ед. изм.</th>
+                                <th>Цена за ед.</th>
+                                <th>Сумма</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                let suborderTotal = 0;
+                suborder.positions.forEach((position, posIndex) => {
+                    suborderTotal += position.total;
+                    html += `
+                        <tr>
+                            <td>${posIndex + 1}</td>
+                            <td>${position.article}</td>
+                            <td>${position.name}</td>
+                            <td>${position.quantity}</td>
+                            <td>шт.</td>
+                            <td>${position.price.toFixed(2)}</td>
+                            <td>${position.total.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
+                            <td style="font-weight: bold;">${suborderTotal.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                    </table>
+                `;
+            });
+            
+            const totalAmount = calculateOrderTotal(currentOrder);
+            html += `
+                <div style="text-align: right; margin-top: 20px;">
+                    <h2>Общая сумма заказа: ${totalAmount.toFixed(2)} руб.</h2>
+                </div>
+            `;
+            
+            printSection.innerHTML = html;
+            
+            window.print();
+        }
+
+        // Функции для загрузки позиций из Excel
+        function showUploadPositionsModal() {
+            if (!currentOrder || currentOrder.suborders.length === 0) {
+                alert('Сначала создайте хотя бы один подзаказ');
+                return;
+            }
+            
+            // Заполняем выпадающий список подзаказами
+            uploadSuborderSelect.innerHTML = '<option value="">-- Выберите подзаказ --</option>';
+            currentOrder.suborders.forEach(suborder => {
+                const option = document.createElement('option');
+                option.value = suborder.id;
+                option.textContent = suborder.name;
+                uploadSuborderSelect.appendChild(option);
+            });
+            
+            uploadPositionsModal.style.display = 'flex';
+            uploadResultsDiv.style.display = 'none';
+            uploadPositionsAlert.innerHTML = '';
+        }
+
+        function uploadPositionsFromFile() {
+            const file = positionsFileInput.files[0];
+            const suborderId = uploadSuborderSelect.value;
+            
+            if (!file) {
+                showAlert(uploadPositionsAlert, 'Выберите файл для загрузки', 'error');
+                return;
+            }
+            
+            if (!suborderId) {
+                showAlert(uploadPositionsAlert, 'Выберите подзаказ', 'error');
+                return;
+            }
+            
+            const suborder = currentOrder.suborders.find(s => s.id === suborderId);
+            if (!suborder) {
+                showAlert(uploadPositionsAlert, 'Подзаказ не найден', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (jsonData.length === 0) {
+                        showAlert(uploadPositionsAlert, 'Файл не содержит данных', 'error');
+                        return;
+                    }
+                    
+                    // Проверяем наличие обязательных колонок
+                    const firstRow = jsonData[0];
+                    const requiredColumns = ['Артикул', 'Количество'];
+                    const missingColumns = requiredColumns.filter(col => !firstRow.hasOwnProperty(col));
+                    
+                    if (missingColumns.length > 0) {
+                        showAlert(uploadPositionsAlert, `Отсутствуют обязательные колонки: ${missingColumns.join(', ')}`, 'error');
+                        return;
+                    }
+                    
+                    // Обрабатываем данные
+                    const results = {
+                        success: 0,
+                        failed: 0,
+                        failedList: []
+                    };
+                    
+                    jsonData.forEach(row => {
+                        const article = String(row['Артикул'] || '').trim();
+                        const quantity = parseInt(row['Количество']) || 0;
+                        
+                        if (!article || quantity <= 0) {
+                            results.failed++;
+                            results.failedList.push({ article, reason: 'Неверные данные' });
+                            return;
+                        }
+                        
+                        // Ищем товар в номенклатуре (без учета регистра)
+                        const product = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
+                        if (!product) {
+                            results.failed++;
+                            results.failedList.push({ article, reason: 'Товар не найден в номенклатуре' });
+                            return;
+                        }
+                        
+                        // Добавляем позицию в подзаказ
+                        suborder.positions.push({
+                            article: product.article, // Сохраняем оригинальный артикул
+                            name: product.name,
+                            quantity: quantity,
+                            price: product.price,
+                            total: quantity * product.price
+                        });
+                        
+                        results.success++;
+                    });
+                    
+                    // Показываем результаты
+                    uploadResultsContent.innerHTML = `
+                        <p>Успешно загружено: <strong>${results.success}</strong> позиций</p>
+                        <p>Не удалось загрузить: <strong>${results.failed}</strong> позиций</p>
+                        ${results.failed > 0 ? `
+                            <details>
+                                <summary>Список неудачных загрузок:</summary>
+                                <ul>
+                                    ${results.failedList.map(item => `<li>${item.article} - ${item.reason}</li>`).join('')}
+                                </ul>
+                            </details>
+                        ` : ''}
+                    `;
+                    
+                    uploadResultsDiv.style.display = 'block';
+                    
+                    if (results.success > 0) {
+                        showAlert(uploadPositionsAlert, `Успешно загружено ${results.success} позиций`, 'success');
+                        renderOrderStructure();
+                        updateOrderTotal();
+                    } else {
+                        showAlert(uploadPositionsAlert, 'Не удалось загрузить ни одной позиции', 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('Ошибка при обработке файла:', error);
+                    showAlert(uploadPositionsAlert, 'Ошибка при обработке файла: ' + error.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Функция массовой замены артикулов
+        function replaceArticlesInOrder() {
+            const oldArticle = replaceOldArticleInput.value.trim();
+            const newArticle = replaceNewArticleInput.value.trim();
+            
+            if (!oldArticle || !newArticle) {
+                alert('Введите старый и новый артикулы');
+                return;
+            }
+            
+            if (oldArticle === newArticle) {
+                alert('Старый и новый артикулы не должны совпадать');
+                return;
+            }
+            
+            // Ищем новый товар в номенклатуре
+            const newProduct = priceList.find(p => p.article.toLowerCase() === newArticle.toLowerCase());
+            if (!newProduct) {
+                alert('Новый товар не найден в номенклатуре');
+                return;
+            }
+            
+            if (!confirm(`Заменить артикул "${oldArticle}" на "${newArticle}" во всем заказе?`)) {
+                return;
+            }
+            
+            let replacedCount = 0;
+            
+            // Проходим по всем подзаказам и позициям
+            currentOrder.suborders.forEach(suborder => {
+                suborder.positions.forEach(position => {
+                    if (position.article.toLowerCase() === oldArticle.toLowerCase()) {
+                        position.article = newProduct.article;
+                        position.name = newProduct.name;
+                        position.price = newProduct.price;
+                        position.total = position.quantity * newProduct.price;
+                        replacedCount++;
+                    }
+                });
+            });
+            
+            if (replacedCount > 0) {
+                alert(`Успешно заменено ${replacedCount} позиций`);
+                renderOrderStructure();
+                updateOrderTotal();
+                
+                // Очищаем поля
+                replaceOldArticleInput.value = '';
+                replaceNewArticleInput.value = '';
+            } else {
+                alert('Позиции с указанным артикулом не найдены в заказе');
+            }
+        }
+
+        // Вспомогательные функции
+        function showAlert(container, message, type, autoHide = false) {
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            
+            if (autoHide) {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('stats-products').textContent = priceList.length;
+            document.getElementById('stats-orders').textContent = allOrders.length;
+            
+            const totalAmount = allOrders.reduce((sum, order) => sum + calculateOrderTotal(order), 0);
+            document.getElementById('stats-total').textContent = totalAmount.toFixed(2) + ' руб.';
+            
+            const uniqueBrands = new Set(priceList.map(product => product.brand));
+            document.getElementById('stats-brands').textContent = uniqueBrands.size;
+        }
+    </script>
+</body>
+</html>
