@@ -506,6 +506,17 @@
             margin-bottom: 15px;
             border: 1px solid #ffeaa7;
         }
+        .markup-controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .markup-controls input, .markup-controls select {
+            flex: 1;
+        }
+        .markup-controls button {
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -557,7 +568,6 @@
                     <div class="tab" data-tab="nomenclature" id="nomenclatureTab">Номенклатура</div>
                     <div class="tab" data-tab="settings">Настройки</div>
                 </div>
-
                 <!-- Секция работы с заказами -->
                 <div class="tab-content active" id="orders-tab">
                     <div class="section" id="orderListSection">
@@ -565,6 +575,9 @@
                         <div style="margin-bottom: 20px;">
                             <button id="createNewOrderBtn" class="i-btn btn-success">
                                 <i class="fas fa-plus"></i> Создать новый заказ
+                            </button>
+                            <button id="duplicateOrderBtn" class="i-btn btn-warning" style="display: none;">
+                                <i class="fas fa-copy"></i> Копировать заказ
                             </button>
                         </div>
                         <div class="form-group no-print" id="userFilterContainer" style="display: none;">
@@ -600,6 +613,7 @@
                             <button id="backToListBtn" class="i-btn"><i class="fas fa-arrow-left"></i> Назад к списку</button>
                             <button id="saveOrderBtn" class="i-btn btn-success"><i class="fas fa-save"></i> Сохранить заказ</button>
                             <button id="printOrderBtn" class="i-btn"><i class="fas fa-print"></i> Печать</button>
+                            <button id="exportPositionsBtn" class="i-btn btn-warning"><i class="fas fa-file-excel"></i> Выгрузить позиции в Excel</button>
                             <button id="uploadPositionsBtn" class="i-btn btn-warning"><i class="fas fa-file-upload"></i> Загрузить позиции из Excel</button>
                         </div>
                         <h2><i class="fas fa-edit"></i> Редактирование заказа: <span id="editOrderNumber"></span></h2>
@@ -617,7 +631,6 @@
                             <label for="orderComment">Комментарий к заказу:</label>
                             <textarea id="orderComment" rows="3" placeholder="Введите комментарий к заказу"></textarea>
                         </div>
-                        
                         <!-- Форма массовой замены артикулов -->
                         <div class="bulk-replace-form no-print">
                             <h3><i class="fas fa-exchange-alt"></i> Массовая замена артикулов</h3>
@@ -633,7 +646,14 @@
                             </div>
                             <button id="replaceArticlesBtn" class="i-btn btn-warning"><i class="fas fa-sync"></i> Заменить во всем заказе</button>
                         </div>
-                        
+                        <!-- Наценки/скидки по брендам -->
+                        <div class="markup-controls no-print">
+                            <select id="markupBrandSelect">
+                                <option value="">-- Выберите бренд --</option>
+                            </select>
+                            <input type="number" id="markupValue" placeholder="Процент наценки/скидки" step="0.01">
+                            <button id="applyMarkupBtn" class="i-btn btn-success"><i class="fas fa-percentage"></i> Применить</button>
+                        </div>
                         <h3><i class="fas fa-plus-circle"></i> Добавление подзаказов (групп)</h3>
                         <div class="form-group">
                             <label for="suborderName">Наименование подзаказа/группы:</label>
@@ -645,14 +665,12 @@
                         <div id="orderStructure">
                             <!-- Здесь будет отображаться структура заказа -->
                         </div>
-                        
                         <div class="order-summary">
                             <h3>Итого по заказу: <span id="totalAmount">0.00</span> руб.</h3>
                             <div id="discountInfo"></div>
                         </div>
                     </div>
                 </div>
-
                 <!-- Секция загрузки прайс-листа -->
                 <div class="tab-content" id="price-tab">
                     <div class="section">
@@ -700,7 +718,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Секция номенклатуры -->
                 <div class="tab-content" id="nomenclature-tab">
                     <div class="section">
@@ -751,11 +768,10 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Секция настроек -->
                 <div class="tab-content" id="settings-tab">
                     <div class="section">
-                        <h2><i class="fas fa-users-cog"></i> Управление пользователей</h2>
+                        <h2><i class="fas fa-users-cog"></i> Управление пользователями</h2>
                         <div id="userManagement">
                             <div class="form-group">
                                 <label for="newUsername">Имя пользователя:</label>
@@ -808,7 +824,6 @@
                 </div>
             </div>
         </div>
-
         <!-- Модальное окно для создания товара -->
         <div id="productModal" class="modal">
             <div class="modal-content">
@@ -842,7 +857,6 @@
                 <div id="productAlert"></div>
             </div>
         </div>
-
         <!-- Модальное окно для загрузки позиций -->
         <div id="uploadPositionsModal" class="modal">
             <div class="modal-content">
@@ -869,13 +883,11 @@
                 </div>
             </div>
         </div>
-
         <!-- Секция для печати -->
         <div id="print-section" style="display: none;">
             <!-- Содержимое будет генерироваться динамически -->
         </div>
     </div>
-
     <script>
         // Глобальные переменные для хранения данных
         let priceList = [];
@@ -886,7 +898,6 @@
         let orderCounter = 1;
         let brandMarkups = {};
         let currentEditingProduct = null;
-
         // Элементы DOM
         const authScreen = document.getElementById('authScreen');
         const mainApp = document.getElementById('mainApp');
@@ -906,6 +917,7 @@
         const backToListBtn = document.getElementById('backToListBtn');
         const saveOrderBtn = document.getElementById('saveOrderBtn');
         const printOrderBtn = document.getElementById('printOrderBtn');
+        const exportPositionsBtn = document.getElementById('exportPositionsBtn');
         const uploadPositionsBtn = document.getElementById('uploadPositionsBtn');
         const editOrderNumberSpan = document.getElementById('editOrderNumber');
         const editOrderDateInput = document.getElementById('editOrderDate');
@@ -970,89 +982,99 @@
         const replaceOldArticleInput = document.getElementById('replaceOldArticle');
         const replaceNewArticleInput = document.getElementById('replaceNewArticle');
         const replaceArticlesBtn = document.getElementById('replaceArticlesBtn');
-
+        const duplicateOrderBtn = document.getElementById('duplicateOrderBtn');
+        const markupBrandSelect = document.getElementById('markupBrandSelect');
+        const markupValueInput = document.getElementById('markupValue');
+        const applyMarkupBtn = document.getElementById('applyMarkupBtn');
         // Инициализация приложения
         document.addEventListener('DOMContentLoaded', function() {
             // Проверяем наличие данных в localStorage
             loadDataFromStorage();
-            
             // Инициализация дат
             const today = new Date().toISOString().split('T')[0];
             tariffDateInput.value = today;
             editOrderDateInput.value = today;
-            
             // Настройка обработчиков событий
             setupEventListeners();
-            
             // Обновление статистики
             updateStats();
-            
-            // Показать экран авторизации
-            authScreen.style.display = 'block';
-            mainApp.style.display = 'none';
+            // Проверяем авторизацию
+            checkAuth();
         });
-
+        // Проверка авторизации при загрузке
+        function checkAuth() {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                authScreen.style.display = 'none';
+                mainApp.style.display = 'block';
+                currentUserSpan.textContent = currentUser.username;
+                currentRoleSpan.textContent = getRoleDisplayName(currentUser.role);
+                updateUIForRole();
+                loadDataFromStorage(); // Загружаем данные снова после проверки авторизации
+                updateStats();
+                renderOrdersList();
+                renderPriceList();
+                renderNomenclatureTree();
+                renderUsersList();
+            } else {
+                authScreen.style.display = 'block';
+                mainApp.style.display = 'none';
+            }
+        }
         // Настройка обработчиков событий
         function setupEventListeners() {
             // Авторизация
             loginBtn.addEventListener('click', handleLogin);
             logoutBtn.addEventListener('click', handleLogout);
-            
             // Навигация по вкладкам
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                    
                     this.classList.add('active');
                     document.getElementById(this.dataset.tab + '-tab').classList.add('active');
                 });
             });
-            
             // Работа с заказами
             createNewOrderBtn.addEventListener('click', createNewOrder);
+            duplicateOrderBtn.addEventListener('click', duplicateCurrentOrder);
             backToListBtn.addEventListener('click', showOrderList);
             saveOrderBtn.addEventListener('click', saveCurrentOrder);
             printOrderBtn.addEventListener('click', printOrder);
+            exportPositionsBtn.addEventListener('click', exportOrderPositions);
             uploadPositionsBtn.addEventListener('click', showUploadPositionsModal);
             searchOrderInput.addEventListener('input', filterOrders);
             addSuborderBtn.addEventListener('click', addSuborder);
-            
+            // Наценки/скидки
+            applyMarkupBtn.addEventListener('click', applyMarkupToBrand);
             // Работа с прайс-листом
             uploadPriceBtn.addEventListener('click', uploadPriceList);
             searchProductInput.addEventListener('input', filterProducts);
             addManualProductBtn.addEventListener('click', showProductModal);
             saveManualProductBtn.addEventListener('click', saveManualProduct);
-            
             // Управление пользователями
             addUserBtn.addEventListener('click', addUser);
-            
             // Управление данными
             exportDataBtn.addEventListener('click', exportData);
             importDataBtn.addEventListener('click', () => importFileInput.click());
             importFileInput.addEventListener('change', importData);
             clearDataBtn.addEventListener('click', clearData);
-            
             // Закрытие модальных окон
             modalCloseBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     this.closest('.modal').style.display = 'none';
                 });
             });
-            
             // Поиск в номенклатуре
             searchNomenclatureInput.addEventListener('input', filterNomenclature);
-            
             // Редактирование товара
             saveProductBtn.addEventListener('click', saveProductChanges);
             cancelEditBtn.addEventListener('click', cancelProductEdit);
-            
             // Загрузка позиций
             uploadPositionsConfirmBtn.addEventListener('click', uploadPositionsFromFile);
-            
             // Массовая замена артикулов
             replaceArticlesBtn.addEventListener('click', replaceArticlesInOrder);
-            
             // Закрытие модальных окон по клику вне их
             window.addEventListener('click', function(event) {
                 if (event.target.classList.contains('modal')) {
@@ -1060,34 +1082,27 @@
                 }
             });
         }
-
         // Функции авторизации
         function handleLogin() {
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
-            
             if (!username || !password) {
                 showAlert(authAlert, 'Введите имя пользователя и пароль', 'error');
                 return;
             }
-            
             const user = users.find(u => u.username === username && u.password === password);
-            
             if (!user) {
                 showAlert(authAlert, 'Неверное имя пользователя или пароль', 'error');
                 return;
             }
-            
             currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             authScreen.style.display = 'none';
             mainApp.style.display = 'block';
-            
             currentUserSpan.textContent = currentUser.username;
             currentRoleSpan.textContent = getRoleDisplayName(currentUser.role);
-            
             // Обновление интерфейса в зависимости от роли
             updateUIForRole();
-            
             // Загрузка данных
             loadDataFromStorage();
             updateStats();
@@ -1095,43 +1110,35 @@
             renderPriceList();
             renderNomenclatureTree();
             renderUsersList();
-            
             showAlert(authAlert, '', 'success', true);
         }
-
         function handleLogout() {
             currentUser = null;
+            localStorage.removeItem('currentUser');
             authScreen.style.display = 'block';
             mainApp.style.display = 'none';
             usernameInput.value = '';
             passwordInput.value = '';
         }
-
         function updateUIForRole() {
             const isAdmin = currentUser && currentUser.role === 'admin';
             const canUpload = currentUser && currentUser.canUploadPrice;
-            
             // Показываем/скрываем вкладки в зависимости от прав
             priceTab.style.display = (isAdmin || canUpload) ? 'block' : 'none';
             nomenclatureTab.style.display = (isAdmin || canUpload) ? 'block' : 'none';
-            
             // Показываем/скрываем элементы управления
             document.getElementById('priceFile').disabled = !(isAdmin || canUpload);
             document.getElementById('uploadPriceBtn').disabled = !(isAdmin || canUpload);
             document.getElementById('addManualProductBtn').disabled = !(isAdmin || canUpload);
-            
             // Показываем/скрываем раздел управления пользователями
             document.getElementById('settings-tab').style.display = isAdmin ? 'block' : 'none';
-            
             // Показываем/скрываем фильтр по пользователям
             userFilterContainer.style.display = isAdmin ? 'block' : 'none';
-            
             // Обновляем список пользователей для фильтра
             if (isAdmin) {
                 updateUserFilter();
             }
         }
-
         function getRoleDisplayName(role) {
             switch(role) {
                 case 'admin': return 'Администратор';
@@ -1139,7 +1146,6 @@
                 default: return 'Пользователь';
             }
         }
-
         // Функции работы с данными
         function loadDataFromStorage() {
             priceList = JSON.parse(localStorage.getItem('priceList')) || [];
@@ -1147,7 +1153,6 @@
             users = JSON.parse(localStorage.getItem('users')) || [];
             brandMarkups = JSON.parse(localStorage.getItem('brandMarkups')) || {};
             orderCounter = parseInt(localStorage.getItem('orderCounter')) || 1;
-            
             // Если пользователей нет, создаем администратора по умолчанию
             if (users.length === 0) {
                 users.push({
@@ -1159,27 +1164,21 @@
                 saveUsersToStorage();
             }
         }
-
         function savePriceListToStorage() {
             localStorage.setItem('priceList', JSON.stringify(priceList));
         }
-
         function saveOrdersToStorage() {
             localStorage.setItem('allOrders', JSON.stringify(allOrders));
         }
-
         function saveUsersToStorage() {
             localStorage.setItem('users', JSON.stringify(users));
         }
-
         function saveBrandMarkupsToStorage() {
             localStorage.setItem('brandMarkups', JSON.stringify(brandMarkups));
         }
-
         function saveOrderCounterToStorage() {
             localStorage.setItem('orderCounter', orderCounter.toString());
         }
-
         // Функции работы с заказами
         function createNewOrder() {
             currentOrder = {
@@ -1187,12 +1186,12 @@
                 date: new Date().toISOString().split('T')[0],
                 user: currentUser.username,
                 suborders: [],
-                comment: ''
+                comment: '',
+                brandMarkups: {} // Добавляем поле для наценок по брендам
             };
-            
             orderCounter++;
             saveOrderCounterToStorage();
-            
+            duplicateOrderBtn.style.display = 'none';
             editOrderNumberSpan.textContent = currentOrder.number;
             editOrderDateInput.value = currentOrder.date;
             editOrderNumberInput.value = currentOrder.number;
@@ -1200,27 +1199,48 @@
             orderStructureDiv.innerHTML = '';
             totalAmountSpan.textContent = '0.00';
             discountInfoDiv.innerHTML = '';
-            
             orderListSection.style.display = 'none';
             orderEditSection.style.display = 'block';
+            updateBrandMarkupSelect();
         }
-
+        function duplicateCurrentOrder() {
+            if (!currentOrder) return;
+            const newOrderNumber = `ORD-${orderCounter.toString().padStart(4, '0')}`;
+            orderCounter++;
+            saveOrderCounterToStorage();
+            // Глубокое копирование заказа
+            currentOrder = JSON.parse(JSON.stringify(currentOrder));
+            currentOrder.number = newOrderNumber;
+            currentOrder.date = new Date().toISOString().split('T')[0];
+            currentOrder.user = currentUser.username;
+            // Убираем комментарий при копировании
+            currentOrder.comment = '';
+            duplicateOrderBtn.style.display = 'none';
+            editOrderNumberSpan.textContent = currentOrder.number;
+            editOrderDateInput.value = currentOrder.date;
+            editOrderNumberInput.value = currentOrder.number;
+            orderCommentInput.value = currentOrder.comment;
+            orderStructureDiv.innerHTML = '';
+            totalAmountSpan.textContent = '0.00';
+            discountInfoDiv.innerHTML = '';
+            orderListSection.style.display = 'none';
+            orderEditSection.style.display = 'block';
+            renderOrderStructure();
+            updateBrandMarkupSelect();
+        }
         function showOrderList() {
             orderListSection.style.display = 'block';
             orderEditSection.style.display = 'none';
+            duplicateOrderBtn.style.display = 'none';
             currentOrder = null;
             renderOrdersList();
         }
-
         function saveCurrentOrder() {
             if (!currentOrder) return;
-            
             currentOrder.date = editOrderDateInput.value;
             currentOrder.comment = orderCommentInput.value;
-            
             // Обновляем итоговую сумму
             updateOrderTotal();
-            
             // Сохраняем заказ в список
             const existingIndex = allOrders.findIndex(o => o.number === currentOrder.number);
             if (existingIndex >= 0) {
@@ -1228,38 +1248,29 @@
             } else {
                 allOrders.push(currentOrder);
             }
-            
             saveOrdersToStorage();
             updateStats();
-            
             showOrderList();
         }
-
         function addSuborder() {
             const name = suborderNameInput.value.trim();
             if (!name) {
                 showAlert(suborderAlert, 'Введите наименование подзаказа', 'error');
                 return;
             }
-            
             if (!currentOrder) return;
-            
             currentOrder.suborders.push({
                 id: Date.now().toString(),
                 name: name,
                 positions: []
             });
-            
             suborderNameInput.value = '';
             showAlert(suborderAlert, 'Подзаказ добавлен', 'success');
             renderOrderStructure();
         }
-
         function renderOrderStructure() {
             if (!currentOrder) return;
-            
             orderStructureDiv.innerHTML = '';
-            
             currentOrder.suborders.forEach((suborder, index) => {
                 const suborderDiv = document.createElement('div');
                 suborderDiv.className = 'suborder-panel';
@@ -1323,13 +1334,13 @@
                     </div>
                 `;
                 orderStructureDiv.appendChild(suborderDiv);
+                // Рендерим позиции для этого подзаказа
+                renderSuborderPositions(suborder.id);
             });
-            
             // Добавляем обработчики событий
             addOrderStructureEventListeners();
             updateOrderTotal();
         }
-
         function addOrderStructureEventListeners() {
             // Обработчики для сворачивания/разворачивания подзаказов
             document.querySelectorAll('.toggle-suborder').forEach(btn => {
@@ -1341,7 +1352,6 @@
                     this.classList.toggle('fa-folder-open');
                 });
             });
-            
             // Обработчики для удаления подзаказов
             document.querySelectorAll('.delete-suborder').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1352,25 +1362,21 @@
                     }
                 });
             });
-            
             // Обработчики для поиска товаров
             document.querySelectorAll('.article-input').forEach(input => {
                 input.addEventListener('input', function() {
                     const searchTerm = this.value.trim();
                     const suborderId = this.dataset.suborderId;
                     const resultsDiv = document.getElementById(`search-results-${suborderId}`);
-                    
                     if (searchTerm.length < 2) {
                         resultsDiv.style.display = 'none';
                         return;
                     }
-                    
                     // Поиск по артикулу (без учета регистра) и по имени
                     const results = priceList.filter(product => 
                         product.article.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         product.name.toLowerCase().includes(searchTerm.toLowerCase())
                     ).slice(0, 10);
-                    
                     if (results.length > 0) {
                         resultsDiv.innerHTML = '';
                         results.forEach(product => {
@@ -1381,12 +1387,10 @@
                             item.addEventListener('click', function() {
                                 input.value = product.article;
                                 resultsDiv.style.display = 'none';
-                                
                                 // Заполняем остальные поля
                                 const row = input.closest('.position-row');
                                 row.querySelector('.name-input').value = product.name;
                                 row.querySelector('.price-input').value = product.price;
-                                
                                 // Обновляем сумму
                                 updatePositionTotal(row);
                             });
@@ -1398,7 +1402,6 @@
                     }
                 });
             });
-            
             // Обработчики для изменения количества
             document.querySelectorAll('.quantity-input').forEach(input => {
                 input.addEventListener('input', function() {
@@ -1406,7 +1409,6 @@
                     updatePositionTotal(row);
                 });
             });
-            
             // Обработчики для добавления позиций
             document.querySelectorAll('.add-position').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1416,28 +1418,29 @@
                     const nameInput = row.querySelector('.name-input');
                     const quantityInput = row.querySelector('.quantity-input');
                     const priceInput = row.querySelector('.price-input');
-                    
                     const article = articleInput.value.trim();
                     const name = nameInput.value.trim();
                     const quantity = parseInt(quantityInput.value);
                     const price = parseFloat(priceInput.value);
-                    
                     if (!article || !name || isNaN(quantity) || quantity <= 0 || isNaN(price) || price <= 0) {
                         alert('Заполните все поля корректно');
                         return;
                     }
-                    
                     // Проверяем, существует ли товар с таким артикулом
                     const product = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
                     if (!product) {
                         alert('Товар с таким артикулом не найден в номенклатуре');
                         return;
                     }
-                    
                     // Находим подзаказ
                     const suborder = currentOrder.suborders.find(s => s.id === suborderId);
                     if (!suborder) return;
-                    
+                    // Проверяем, есть ли уже такой артикул в подзаказе
+                    const existingPosition = suborder.positions.find(p => p.article.toLowerCase() === article.toLowerCase());
+                    if (existingPosition) {
+                        alert('Товар с таким артикулом уже добавлен в этот подзаказ');
+                        return;
+                    }
                     // Добавляем позицию
                     suborder.positions.push({
                         article: product.article, // Сохраняем оригинальный артикул
@@ -1446,28 +1449,23 @@
                         price: price,
                         total: quantity * price
                     });
-                    
                     // Очищаем поля ввода
                     articleInput.value = '';
                     nameInput.value = '';
                     quantityInput.value = '1';
                     priceInput.value = '';
                     row.querySelector('.total-display').textContent = '0.00';
-                    
                     // Обновляем таблицу позиций
                     renderSuborderPositions(suborderId);
                     updateOrderTotal();
                 });
             });
         }
-
         function renderSuborderPositions(suborderId) {
             const suborder = currentOrder.suborders.find(s => s.id === suborderId);
             if (!suborder) return;
-            
             const tbody = document.getElementById(`positions-${suborderId}`);
             tbody.innerHTML = '';
-            
             suborder.positions.forEach((position, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -1487,13 +1485,11 @@
                 `;
                 tbody.appendChild(row);
             });
-            
             // Добавляем обработчики для удаления позиций
             document.querySelectorAll('.delete-position').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const suborderId = this.dataset.suborderId;
                     const index = parseInt(this.dataset.index);
-                    
                     if (confirm('Вы уверены, что хотите удалить эту позицию?')) {
                         const suborder = currentOrder.suborders.find(s => s.id === suborderId);
                         if (suborder) {
@@ -1504,25 +1500,22 @@
                     }
                 });
             });
-            
             // Добавляем обработчики для редактирования позиций
             document.querySelectorAll('.edit-position').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const suborderId = this.dataset.suborderId;
                     const index = parseInt(this.dataset.index);
-                    
                     const suborder = currentOrder.suborders.find(s => s.id === suborderId);
                     if (!suborder) return;
-                    
                     const position = suborder.positions[index];
-                    
                     // Заполняем поля ввода для редактирования
-                    const row = this.closest('.position-row');
-                    row.querySelector('.article-input').value = position.article;
-                    row.querySelector('.name-input').value = position.name;
-                    row.querySelector('.quantity-input').value = position.quantity;
-                    row.querySelector('.price-input').value = position.price;
-                    
+                    const row = document.querySelector(`[data-suborder-id="${suborderId}"]`);
+                    if (row) {
+                        row.querySelector('.article-input').value = position.article;
+                        row.querySelector('.name-input').value = position.name;
+                        row.querySelector('.quantity-input').value = position.quantity;
+                        row.querySelector('.price-input').value = position.price;
+                    }
                     // Удаляем старую позицию
                     suborder.positions.splice(index, 1);
                     renderSuborderPositions(suborderId);
@@ -1530,45 +1523,44 @@
                 });
             });
         }
-
         function updatePositionTotal(row) {
             const quantity = parseInt(row.querySelector('.quantity-input').value) || 0;
             const price = parseFloat(row.querySelector('.price-input').value) || 0;
             const total = quantity * price;
             row.querySelector('.total-display').textContent = total.toFixed(2);
         }
-
         function updateOrderTotal() {
             if (!currentOrder) return;
-            
             let total = 0;
             currentOrder.suborders.forEach(suborder => {
                 suborder.positions.forEach(position => {
                     total += position.total;
                 });
             });
-            
             totalAmountSpan.textContent = total.toFixed(2);
-            
             // Обновляем информацию о скидках
             updateDiscountInfo(total);
         }
-
         function updateDiscountInfo(total) {
-            // Здесь можно добавить логику расчета скидок
             discountInfoDiv.innerHTML = '';
+            if (currentOrder && currentOrder.brandMarkups) {
+                Object.keys(currentOrder.brandMarkups).forEach(brand => {
+                    const markup = currentOrder.brandMarkups[brand];
+                    if (markup !== 0) {
+                        const markupText = markup > 0 ? `+${markup}%` : `${markup}%`;
+                        const markupClass = markup > 0 ? 'discount-plus' : 'discount-minus';
+                        discountInfoDiv.innerHTML += `<span class="discount-badge ${markupClass}">${brand}: ${markupText}</span>`;
+                    }
+                });
+            }
         }
-
         function renderOrdersList() {
             ordersListTable.innerHTML = '';
-            
             let filteredOrders = allOrders;
-            
             // Фильтрация по пользователю (для администраторов)
             if (currentUser && currentUser.role === 'admin' && userFilterSelect.value) {
                 filteredOrders = allOrders.filter(order => order.user === userFilterSelect.value);
             }
-            
             // Фильтрация по поисковому запросу
             const searchTerm = searchOrderInput.value.toLowerCase();
             if (searchTerm) {
@@ -1576,19 +1568,16 @@
                     order.number.toLowerCase().includes(searchTerm)
                 );
             }
-            
             if (filteredOrders.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td colspan="7" style="text-align: center;">Заказы не найдены</td>`;
                 ordersListTable.appendChild(row);
                 return;
             }
-            
             filteredOrders.forEach(order => {
                 const row = document.createElement('tr');
                 const suborderCount = order.suborders ? order.suborders.length : 0;
                 const totalAmount = calculateOrderTotal(order);
-                
                 row.innerHTML = `
                     <td>${order.number}</td>
                     <td>${order.date}</td>
@@ -1600,6 +1589,9 @@
                         <button class="i-btn edit-order" data-order-number="${order.number}">
                             <i class="fas fa-edit"></i> Редактировать
                         </button>
+                        <button class="i-btn print-order" data-order-number="${order.number}">
+                            <i class="fas fa-print"></i> Печать
+                        </button>
                         <button class="i-btn btn-danger delete-order" data-order-number="${order.number}">
                             <i class="fas fa-trash"></i> Удалить
                         </button>
@@ -1607,7 +1599,6 @@
                 `;
                 ordersListTable.appendChild(row);
             });
-            
             // Добавляем обработчики для редактирования заказов
             document.querySelectorAll('.edit-order').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1615,7 +1606,13 @@
                     editOrder(orderNumber);
                 });
             });
-            
+            // Добавляем обработчики для печати заказов
+            document.querySelectorAll('.print-order').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderNumber = this.dataset.orderNumber;
+                    printOrderFromList(orderNumber);
+                });
+            });
             // Добавляем обработчики для удаления заказов
             document.querySelectorAll('.delete-order').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1624,7 +1621,6 @@
                 });
             });
         }
-
         function calculateOrderTotal(order) {
             let total = 0;
             if (order.suborders) {
@@ -1636,66 +1632,140 @@
                     }
                 });
             }
+            // Применяем наценки/скидки по брендам
+            if (order.brandMarkups) {
+                const brandTotals = {};
+                order.suborders.forEach(suborder => {
+                    suborder.positions.forEach(position => {
+                        const product = priceList.find(p => p.article === position.article);
+                        if (product) {
+                            if (!brandTotals[product.brand]) {
+                                brandTotals[product.brand] = 0;
+                            }
+                            brandTotals[product.brand] += position.total;
+                        }
+                    });
+                });
+                Object.keys(order.brandMarkups).forEach(brand => {
+                    const markup = order.brandMarkups[brand];
+                    if (brandTotals[brand] && markup !== 0) {
+                        const markupAmount = brandTotals[brand] * (markup / 100);
+                        total += markupAmount;
+                    }
+                });
+            }
             return total;
         }
-
         function editOrder(orderNumber) {
             currentOrder = allOrders.find(o => o.number === orderNumber);
             if (!currentOrder) return;
-            
+            duplicateOrderBtn.style.display = 'inline-flex';
             editOrderNumberSpan.textContent = currentOrder.number;
             editOrderDateInput.value = currentOrder.date;
             editOrderNumberInput.value = currentOrder.number;
             orderCommentInput.value = currentOrder.comment || '';
-            
             renderOrderStructure();
-            
             orderListSection.style.display = 'none';
             orderEditSection.style.display = 'block';
+            updateBrandMarkupSelect();
         }
-
+        function printOrderFromList(orderNumber) {
+            const order = allOrders.find(o => o.number === orderNumber);
+            if (!order) return;
+            const printSection = document.getElementById('print-section');
+            printSection.innerHTML = '';
+            let html = `
+                <div class="print-header">
+                    <h1>Заказ № ${order.number}</h1>
+                    <p>Дата заказа: ${order.date}</p>
+                    <p>Пользователь: ${order.user}</p>
+                    ${order.comment ? `<p>Комментарий: ${order.comment}</p>` : ''}
+                    <hr>
+                </div>
+            `;
+            order.suborders.forEach((suborder, index) => {
+                html += `
+                    <h2>${index + 1}. ${suborder.name}</h2>
+                    <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Артикул</th>
+                                <th>Наименование</th>
+                                <th>Кол-во</th>
+                                <th>Ед. изм.</th>
+                                <th>Цена за ед.</th>
+                                <th>Сумма</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                let suborderTotal = 0;
+                suborder.positions.forEach((position, posIndex) => {
+                    suborderTotal += position.total;
+                    html += `
+                        <tr>
+                            <td>${posIndex + 1}</td>
+                            <td>${position.article}</td>
+                            <td>${position.name}</td>
+                            <td>${position.quantity}</td>
+                            <td>шт.</td>
+                            <td>${position.price.toFixed(2)}</td>
+                            <td>${position.total.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                html += `
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
+                            <td style="font-weight: bold;">${suborderTotal.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                    </table>
+                `;
+            });
+            const totalAmount = calculateOrderTotal(order);
+            html += `
+                <div style="text-align: right; margin-top: 20px;">
+                    <h2>Общая сумма заказа: ${totalAmount.toFixed(2)} руб.</h2>
+                </div>
+            `;
+            printSection.innerHTML = html;
+            window.print();
+        }
         function deleteOrder(orderNumber) {
             if (!confirm('Вы уверены, что хотите удалить этот заказ?')) return;
-            
             allOrders = allOrders.filter(o => o.number !== orderNumber);
             saveOrdersToStorage();
             updateStats();
             renderOrdersList();
         }
-
         function filterOrders() {
             renderOrdersList();
         }
-
         function updateUserFilter() {
             const uniqueUsers = [...new Set(allOrders.map(order => order.user))];
             userFilterSelect.innerHTML = '<option value="">Все пользователи</option>';
-            
             uniqueUsers.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user;
                 option.textContent = user;
                 userFilterSelect.appendChild(option);
             });
-            
             userFilterSelect.addEventListener('change', renderOrdersList);
         }
-
         // Функции работы с прайс-листом
         function uploadPriceList() {
             const file = priceFileInput.files[0];
             const tariffDate = tariffDateInput.value;
-            
             if (!file) {
                 showAlert(priceAlert, 'Выберите файл для загрузки', 'error');
                 return;
             }
-            
             if (!tariffDate) {
                 showAlert(priceAlert, 'Укажите дату начала действия тарифа', 'error');
                 return;
             }
-            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -1704,22 +1774,18 @@
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    
                     if (jsonData.length === 0) {
                         showAlert(priceAlert, 'Файл не содержит данных', 'error');
                         return;
                     }
-                    
                     // Проверяем наличие обязательных колонок
                     const firstRow = jsonData[0];
                     const requiredColumns = ['Артикул', 'Наименование', 'Единица измерения', 'Цена с НДС', 'Бренд'];
                     const missingColumns = requiredColumns.filter(col => !firstRow.hasOwnProperty(col));
-                    
                     if (missingColumns.length > 0) {
                         showAlert(priceAlert, `Отсутствуют обязательные колонки: ${missingColumns.join(', ')}`, 'error');
                         return;
                     }
-                    
                     // Обрабатываем данные
                     const newProducts = jsonData.map(row => ({
                         article: String(row['Артикул'] || '').trim(),
@@ -1731,24 +1797,19 @@
                         tariffDate: tariffDate,
                         createdAt: new Date().toISOString()
                     })).filter(product => product.article && product.name && product.price > 0);
-                    
                     if (newProducts.length === 0) {
                         showAlert(priceAlert, 'Не удалось извлечь корректные данные из файла', 'error');
                         return;
                     }
-                    
                     // Обновляем прайс-лист
                     priceList = [...priceList, ...newProducts];
                     savePriceListToStorage();
-                    
                     showAlert(priceAlert, `Успешно загружено ${newProducts.length} товаров`, 'success');
                     renderPriceList();
                     renderNomenclatureTree();
                     updateStats();
-                    
                     // Очищаем поле файла
                     priceFileInput.value = '';
-                    
                 } catch (error) {
                     console.error('Ошибка при обработке файла:', error);
                     showAlert(priceAlert, 'Ошибка при обработке файла: ' + error.message, 'error');
@@ -1756,20 +1817,16 @@
             };
             reader.readAsArrayBuffer(file);
         }
-
         function renderPriceList() {
             priceListTable.innerHTML = '';
-            
             if (priceList.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td colspan="8" style="text-align: center;">Нет данных</td>`;
                 priceListTable.appendChild(row);
                 return;
             }
-            
             // Сортируем по дате создания (сначала новые)
             const sortedList = [...priceList].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            
             sortedList.forEach((product, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -1791,7 +1848,6 @@
                 `;
                 priceListTable.appendChild(row);
             });
-            
             // Добавляем обработчики для редактирования товаров
             document.querySelectorAll('.edit-product').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1799,7 +1855,6 @@
                     editProduct(index);
                 });
             });
-            
             // Добавляем обработчики для удаления товаров
             document.querySelectorAll('.delete-product').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1808,19 +1863,15 @@
                 });
             });
         }
-
         function filterProducts() {
             const searchTerm = searchProductInput.value.toLowerCase();
             const rows = priceListTable.querySelectorAll('tr');
-            
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length === 0) return;
-                
                 const article = cells[0].textContent.toLowerCase();
                 const name = cells[1].textContent.toLowerCase();
                 const brand = cells[2].textContent.toLowerCase();
-                
                 if (article.includes(searchTerm) || name.includes(searchTerm) || brand.includes(searchTerm)) {
                     row.style.display = '';
                 } else {
@@ -1828,7 +1879,6 @@
                 }
             });
         }
-
         function showProductModal() {
             manualArticleInput.value = '';
             manualNameInput.value = '';
@@ -1838,7 +1888,6 @@
             manualGroupInput.value = '';
             productModal.style.display = 'flex';
         }
-
         function saveManualProduct() {
             const article = manualArticleInput.value.trim();
             const name = manualNameInput.value.trim();
@@ -1846,19 +1895,16 @@
             const price = parseFloat(manualPriceInput.value);
             const brand = manualBrandInput.value.trim();
             const group = manualGroupInput.value.trim();
-            
             if (!article || !name || !unit || isNaN(price) || price <= 0 || !brand) {
                 showAlert(productAlert, 'Заполните все обязательные поля корректно', 'error');
                 return;
             }
-            
             // Проверяем, нет ли уже товара с таким артикулом
             const existingProduct = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
             if (existingProduct) {
                 showAlert(productAlert, 'Товар с таким артикулом уже существует', 'error');
                 return;
             }
-            
             const newProduct = {
                 article: article,
                 name: name,
@@ -1870,52 +1916,41 @@
                 createdAt: new Date().toISOString(),
                 manual: true
             };
-            
             priceList.push(newProduct);
             savePriceListToStorage();
-            
             showAlert(productAlert, 'Товар успешно добавлен', 'success');
             renderPriceList();
             renderNomenclatureTree();
             updateStats();
-            
             // Закрываем модальное окно через секунду
             setTimeout(() => {
                 productModal.style.display = 'none';
             }, 1000);
         }
-
         function editProduct(index) {
             if (index < 0 || index >= priceList.length) return;
-            
             currentEditingProduct = priceList[index];
-            
             editArticleInput.value = currentEditingProduct.article;
             editNameInput.value = currentEditingProduct.name;
             editUnitInput.value = currentEditingProduct.unit;
             editPriceInput.value = currentEditingProduct.price;
             editBrandInput.value = currentEditingProduct.brand;
             editGroupInput.value = currentEditingProduct.group || '';
-            
             productEditSection.style.display = 'block';
             document.getElementById('nomenclature-tab').scrollIntoView({ behavior: 'smooth' });
         }
-
         function saveProductChanges() {
             if (!currentEditingProduct) return;
-            
             const article = editArticleInput.value.trim();
             const name = editNameInput.value.trim();
             const unit = editUnitInput.value.trim();
             const price = parseFloat(editPriceInput.value);
             const brand = editBrandInput.value.trim();
             const group = editGroupInput.value.trim();
-            
             if (!article || !name || !unit || isNaN(price) || price <= 0 || !brand) {
                 showAlert(editProductAlert, 'Заполните все обязательные поля корректно', 'error');
                 return;
             }
-            
             // Проверяем, нет ли другого товара с таким артикулом
             const existingProduct = priceList.find(p => 
                 p.article.toLowerCase() === article.toLowerCase() && p !== currentEditingProduct
@@ -1924,7 +1959,6 @@
                 showAlert(editProductAlert, 'Другой товар с таким артикулом уже существует', 'error');
                 return;
             }
-            
             // Обновляем товар
             currentEditingProduct.article = article;
             currentEditingProduct.name = name;
@@ -1932,60 +1966,47 @@
             currentEditingProduct.price = price;
             currentEditingProduct.brand = brand;
             currentEditingProduct.group = group;
-            
             savePriceListToStorage();
-            
             showAlert(editProductAlert, 'Товар успешно обновлен', 'success');
             renderPriceList();
             renderNomenclatureTree();
-            
             // Закрываем форму редактирования через секунду
             setTimeout(() => {
                 cancelProductEdit();
             }, 1000);
         }
-
         function cancelProductEdit() {
             currentEditingProduct = null;
             productEditSection.style.display = 'none';
         }
-
         function deleteProduct(index) {
             if (index < 0 || index >= priceList.length) return;
-            
             if (!confirm('Вы уверены, что хотите удалить этот товар?')) return;
-            
             priceList.splice(index, 1);
             savePriceListToStorage();
             renderPriceList();
             renderNomenclatureTree();
             updateStats();
         }
-
         // Функции работы с номенклатурой
         function renderNomenclatureTree() {
             if (priceList.length === 0) {
                 nomenclatureTreeDiv.innerHTML = '<div class="alert alert-info">Нет данных. Загрузите прайс-лист.</div>';
                 return;
             }
-            
             // Группируем товары по брендам и группам
             const brands = {};
             priceList.forEach(product => {
                 if (!brands[product.brand]) {
                     brands[product.brand] = {};
                 }
-                
                 const group = product.group || 'Без группы';
                 if (!brands[product.brand][group]) {
                     brands[product.brand][group] = [];
                 }
-                
                 brands[product.brand][group].push(product);
             });
-            
             let html = '<div class="nomenclature-tree"><ul>';
-            
             Object.keys(brands).sort().forEach(brand => {
                 html += `
                     <li class="brand-node">
@@ -1993,7 +2014,6 @@
                         <strong>${brand}</strong>
                         <ul class="node-content">
                 `;
-                
                 Object.keys(brands[brand]).sort().forEach(group => {
                     html += `
                         <li class="group-node">
@@ -2001,7 +2021,6 @@
                             <strong>${group}</strong>
                             <ul class="node-content">
                     `;
-                    
                     brands[brand][group].forEach(product => {
                         html += `
                             <li class="product-node">
@@ -2012,16 +2031,12 @@
                             </li>
                         `;
                     });
-                    
                     html += '</ul></li>';
                 });
-                
                 html += '</ul></li>';
             });
-            
             html += '</ul></div>';
             nomenclatureTreeDiv.innerHTML = html;
-            
             // Добавляем обработчики для сворачивания/разворачивания узлов
             document.querySelectorAll('.toggle-node').forEach(node => {
                 node.addEventListener('click', function() {
@@ -2034,7 +2049,6 @@
                     }
                 });
             });
-            
             // Добавляем обработчики для редактирования товаров из дерева
             document.querySelectorAll('.edit-product-from-tree').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -2046,18 +2060,15 @@
                 });
             });
         }
-
         function filterNomenclature() {
             const searchTerm = searchNomenclatureInput.value.toLowerCase();
             const nodes = nomenclatureTreeDiv.querySelectorAll('.product-node');
-            
             if (!searchTerm) {
                 nodes.forEach(node => {
                     node.style.display = '';
                 });
                 return;
             }
-            
             nodes.forEach(node => {
                 const text = node.textContent.toLowerCase();
                 if (text.includes(searchTerm)) {
@@ -2067,59 +2078,52 @@
                 }
             });
         }
-
         // Функции управления пользователями
         function addUser() {
             const username = newUsernameInput.value.trim();
             const password = newPasswordInput.value.trim();
             const role = userRoleSelect.value;
             const canUploadPrice = canUploadPriceCheckbox.checked;
-            
             if (!username || !password) {
                 showAlert(userAlert, 'Введите имя пользователя и пароль', 'error');
                 return;
             }
-            
             if (users.find(u => u.username === username)) {
                 showAlert(userAlert, 'Пользователь с таким именем уже существует', 'error');
                 return;
             }
-            
             users.push({
                 username: username,
                 password: password,
                 role: role,
                 canUploadPrice: canUploadPrice
             });
-            
             saveUsersToStorage();
             renderUsersList();
-            
             showAlert(userAlert, 'Пользователь успешно добавлен', 'success');
             newUsernameInput.value = '';
             newPasswordInput.value = '';
         }
-
         function renderUsersList() {
             usersListTable.innerHTML = '';
-            
             if (users.length === 0) {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td colspan="4" style="text-align: center;">Нет пользователей</td>`;
                 usersListTable.appendChild(row);
                 return;
             }
-            
             users.forEach((user, index) => {
                 // Не показываем текущего пользователя в списке для удаления
                 if (currentUser && user.username === currentUser.username) return;
-                
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${user.username}</td>
                     <td>${getRoleDisplayName(user.role)}</td>
                     <td>${user.canUploadPrice ? 'Да' : 'Нет'}</td>
                     <td>
+                        <button class="i-btn edit-user" data-index="${index}">
+                            <i class="fas fa-edit"></i> Редактировать
+                        </button>
                         <button class="i-btn btn-danger delete-user" data-index="${index}">
                             <i class="fas fa-trash"></i> Удалить
                         </button>
@@ -2127,7 +2131,6 @@
                 `;
                 usersListTable.appendChild(row);
             });
-            
             // Добавляем обработчики для удаления пользователей
             document.querySelectorAll('.delete-user').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -2135,18 +2138,66 @@
                     deleteUser(index);
                 });
             });
+            // Добавляем обработчики для редактирования пользователей
+            document.querySelectorAll('.edit-user').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    editUser(index);
+                });
+            });
         }
-
+        function editUser(index) {
+            if (index < 0 || index >= users.length) return;
+            const user = users[index];
+            newUsernameInput.value = user.username;
+            newPasswordInput.value = user.password;
+            userRoleSelect.value = user.role;
+            canUploadPriceCheckbox.checked = user.canUploadPrice;
+            addUserBtn.textContent = 'Сохранить изменения';
+            addUserBtn.onclick = function() {
+                updateUser(index);
+            };
+        }
+        function updateUser(index) {
+            const username = newUsernameInput.value.trim();
+            const password = newPasswordInput.value.trim();
+            const role = userRoleSelect.value;
+            const canUploadPrice = canUploadPriceCheckbox.checked;
+            if (!username || !password) {
+                showAlert(userAlert, 'Введите имя пользователя и пароль', 'error');
+                return;
+            }
+            const existingUserIndex = users.findIndex((u, i) => u.username === username && i !== index);
+            if (existingUserIndex >= 0) {
+                showAlert(userAlert, 'Пользователь с таким именем уже существует', 'error');
+                return;
+            }
+            users[index] = {
+                username: username,
+                password: password,
+                role: role,
+                canUploadPrice: canUploadPrice
+            };
+            saveUsersToStorage();
+            renderUsersList();
+            resetUserForm();
+            showAlert(userAlert, 'Пользователь успешно обновлен', 'success');
+        }
+        function resetUserForm() {
+            newUsernameInput.value = '';
+            newPasswordInput.value = '';
+            userRoleSelect.value = 'user';
+            canUploadPriceCheckbox.checked = false;
+            addUserBtn.textContent = 'Добавить пользователя';
+            addUserBtn.onclick = addUser;
+        }
         function deleteUser(index) {
             if (index < 0 || index >= users.length) return;
-            
             if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
-            
             users.splice(index, 1);
             saveUsersToStorage();
             renderUsersList();
         }
-
         // Функции управления данными
         function exportData() {
             const data = {
@@ -2157,47 +2208,38 @@
                 orderCounter: orderCounter,
                 exportDate: new Date().toISOString()
             };
-            
             const dataStr = JSON.stringify(data, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `order_data_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
-            
             URL.revokeObjectURL(url);
         }
-
         function importData() {
             const file = importFileInput.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    
                     if (confirm('Это действие перезапишет все текущие данные. Продолжить?')) {
                         priceList = data.priceList || [];
                         allOrders = data.allOrders || [];
                         users = data.users || [];
                         brandMarkups = data.brandMarkups || {};
                         orderCounter = data.orderCounter || 1;
-                        
                         savePriceListToStorage();
                         saveOrdersToStorage();
                         saveUsersToStorage();
                         saveBrandMarkupsToStorage();
                         saveOrderCounterToStorage();
-                        
                         updateStats();
                         renderOrdersList();
                         renderPriceList();
                         renderNomenclatureTree();
                         renderUsersList();
-                        
                         alert('Данные успешно импортированы');
                     }
                 } catch (error) {
@@ -2208,7 +2250,6 @@
             reader.readAsText(file);
             importFileInput.value = '';
         }
-
         function clearData() {
             if (confirm('Вы уверены, что хотите удалить все данные? Это действие нельзя отменить.')) {
                 localStorage.clear();
@@ -2217,7 +2258,6 @@
                 users = [];
                 brandMarkups = {};
                 orderCounter = 1;
-                
                 // Создаем администратора по умолчанию
                 users.push({
                     username: 'admin',
@@ -2226,24 +2266,19 @@
                     canUploadPrice: true
                 });
                 saveUsersToStorage();
-                
                 updateStats();
                 renderOrdersList();
                 renderPriceList();
                 renderNomenclatureTree();
                 renderUsersList();
-                
                 alert('Все данные удалены');
             }
         }
-
         // Функции для печати
         function printOrder() {
             if (!currentOrder) return;
-            
             const printSection = document.getElementById('print-section');
             printSection.innerHTML = '';
-            
             let html = `
                 <div class="print-header">
                     <h1>Заказ № ${currentOrder.number}</h1>
@@ -2253,7 +2288,6 @@
                     <hr>
                 </div>
             `;
-            
             currentOrder.suborders.forEach((suborder, index) => {
                 html += `
                     <h2>${index + 1}. ${suborder.name}</h2>
@@ -2271,7 +2305,6 @@
                         </thead>
                         <tbody>
                 `;
-                
                 let suborderTotal = 0;
                 suborder.positions.forEach((position, posIndex) => {
                     suborderTotal += position.total;
@@ -2287,7 +2320,6 @@
                         </tr>
                     `;
                 });
-                
                 html += `
                         <tr>
                             <td colspan="6" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
@@ -2297,26 +2329,48 @@
                     </table>
                 `;
             });
-            
             const totalAmount = calculateOrderTotal(currentOrder);
             html += `
                 <div style="text-align: right; margin-top: 20px;">
                     <h2>Общая сумма заказа: ${totalAmount.toFixed(2)} руб.</h2>
                 </div>
             `;
-            
             printSection.innerHTML = html;
-            
             window.print();
         }
-
+        // Функция выгрузки позиций в Excel
+        function exportOrderPositions() {
+            if (!currentOrder) return;
+            let allPositions = [];
+            currentOrder.suborders.forEach(suborder => {
+                suborder.positions.forEach(position => {
+                    const product = priceList.find(p => p.article === position.article);
+                    allPositions.push({
+                        'Подзаказ': suborder.name,
+                        'Артикул': position.article,
+                        'Наименование': position.name,
+                        'Количество': position.quantity,
+                        'Ед. изм.': product ? product.unit : '',
+                        'Цена за ед.': position.price,
+                        'Сумма': position.total
+                    });
+                });
+            });
+            if (allPositions.length === 0) {
+                alert('Нет позиций для выгрузки');
+                return;
+            }
+            const ws = XLSX.utils.json_to_sheet(allPositions);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Позиции заказа");
+            XLSX.writeFile(wb, `Позиции_заказа_${currentOrder.number}.xlsx`);
+        }
         // Функции для загрузки позиций из Excel
         function showUploadPositionsModal() {
             if (!currentOrder || currentOrder.suborders.length === 0) {
                 alert('Сначала создайте хотя бы один подзаказ');
                 return;
             }
-            
             // Заполняем выпадающий список подзаказами
             uploadSuborderSelect.innerHTML = '<option value="">-- Выберите подзаказ --</option>';
             currentOrder.suborders.forEach(suborder => {
@@ -2325,32 +2379,26 @@
                 option.textContent = suborder.name;
                 uploadSuborderSelect.appendChild(option);
             });
-            
             uploadPositionsModal.style.display = 'flex';
             uploadResultsDiv.style.display = 'none';
             uploadPositionsAlert.innerHTML = '';
         }
-
         function uploadPositionsFromFile() {
             const file = positionsFileInput.files[0];
             const suborderId = uploadSuborderSelect.value;
-            
             if (!file) {
                 showAlert(uploadPositionsAlert, 'Выберите файл для загрузки', 'error');
                 return;
             }
-            
             if (!suborderId) {
                 showAlert(uploadPositionsAlert, 'Выберите подзаказ', 'error');
                 return;
             }
-            
             const suborder = currentOrder.suborders.find(s => s.id === suborderId);
             if (!suborder) {
                 showAlert(uploadPositionsAlert, 'Подзаказ не найден', 'error');
                 return;
             }
-            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -2359,39 +2407,32 @@
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    
                     if (jsonData.length === 0) {
                         showAlert(uploadPositionsAlert, 'Файл не содержит данных', 'error');
                         return;
                     }
-                    
                     // Проверяем наличие обязательных колонок
                     const firstRow = jsonData[0];
                     const requiredColumns = ['Артикул', 'Количество'];
                     const missingColumns = requiredColumns.filter(col => !firstRow.hasOwnProperty(col));
-                    
                     if (missingColumns.length > 0) {
                         showAlert(uploadPositionsAlert, `Отсутствуют обязательные колонки: ${missingColumns.join(', ')}`, 'error');
                         return;
                     }
-                    
                     // Обрабатываем данные
                     const results = {
                         success: 0,
                         failed: 0,
                         failedList: []
                     };
-                    
                     jsonData.forEach(row => {
                         const article = String(row['Артикул'] || '').trim();
                         const quantity = parseInt(row['Количество']) || 0;
-                        
                         if (!article || quantity <= 0) {
                             results.failed++;
                             results.failedList.push({ article, reason: 'Неверные данные' });
                             return;
                         }
-                        
                         // Ищем товар в номенклатуре (без учета регистра)
                         const product = priceList.find(p => p.article.toLowerCase() === article.toLowerCase());
                         if (!product) {
@@ -2399,7 +2440,13 @@
                             results.failedList.push({ article, reason: 'Товар не найден в номенклатуре' });
                             return;
                         }
-                        
+                        // Проверяем, есть ли уже такой артикул в подзаказе
+                        const existingPosition = suborder.positions.find(p => p.article.toLowerCase() === article.toLowerCase());
+                        if (existingPosition) {
+                            results.failed++;
+                            results.failedList.push({ article, reason: 'Товар уже добавлен в подзаказ' });
+                            return;
+                        }
                         // Добавляем позицию в подзаказ
                         suborder.positions.push({
                             article: product.article, // Сохраняем оригинальный артикул
@@ -2408,10 +2455,8 @@
                             price: product.price,
                             total: quantity * product.price
                         });
-                        
                         results.success++;
                     });
-                    
                     // Показываем результаты
                     uploadResultsContent.innerHTML = `
                         <p>Успешно загружено: <strong>${results.success}</strong> позиций</p>
@@ -2425,17 +2470,14 @@
                             </details>
                         ` : ''}
                     `;
-                    
                     uploadResultsDiv.style.display = 'block';
-                    
                     if (results.success > 0) {
                         showAlert(uploadPositionsAlert, `Успешно загружено ${results.success} позиций`, 'success');
-                        renderOrderStructure();
+                        renderOrderStructure(); // Перерендерим структуру для обновления позиций
                         updateOrderTotal();
                     } else {
                         showAlert(uploadPositionsAlert, 'Не удалось загрузить ни одной позиции', 'error');
                     }
-                    
                 } catch (error) {
                     console.error('Ошибка при обработке файла:', error);
                     showAlert(uploadPositionsAlert, 'Ошибка при обработке файла: ' + error.message, 'error');
@@ -2443,35 +2485,28 @@
             };
             reader.readAsArrayBuffer(file);
         }
-
         // Функция массовой замены артикулов
         function replaceArticlesInOrder() {
             const oldArticle = replaceOldArticleInput.value.trim();
             const newArticle = replaceNewArticleInput.value.trim();
-            
             if (!oldArticle || !newArticle) {
                 alert('Введите старый и новый артикулы');
                 return;
             }
-            
             if (oldArticle === newArticle) {
                 alert('Старый и новый артикулы не должны совпадать');
                 return;
             }
-            
             // Ищем новый товар в номенклатуре
             const newProduct = priceList.find(p => p.article.toLowerCase() === newArticle.toLowerCase());
             if (!newProduct) {
                 alert('Новый товар не найден в номенклатуре');
                 return;
             }
-            
             if (!confirm(`Заменить артикул "${oldArticle}" на "${newArticle}" во всем заказе?`)) {
                 return;
             }
-            
             let replacedCount = 0;
-            
             // Проходим по всем подзаказам и позициям
             currentOrder.suborders.forEach(suborder => {
                 suborder.positions.forEach(position => {
@@ -2484,12 +2519,10 @@
                     }
                 });
             });
-            
             if (replacedCount > 0) {
                 alert(`Успешно заменено ${replacedCount} позиций`);
                 renderOrderStructure();
                 updateOrderTotal();
-                
                 // Очищаем поля
                 replaceOldArticleInput.value = '';
                 replaceNewArticleInput.value = '';
@@ -2497,25 +2530,61 @@
                 alert('Позиции с указанным артикулом не найдены в заказе');
             }
         }
-
+        // Функции для наценок/скидок по брендам
+        function updateBrandMarkupSelect() {
+            if (!currentOrder) return;
+            markupBrandSelect.innerHTML = '<option value="">-- Выберите бренд --</option>';
+            const brandsInOrder = new Set();
+            currentOrder.suborders.forEach(suborder => {
+                suborder.positions.forEach(position => {
+                    const product = priceList.find(p => p.article === position.article);
+                    if (product) {
+                        brandsInOrder.add(product.brand);
+                    }
+                });
+            });
+            brandsInOrder.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                markupBrandSelect.appendChild(option);
+            });
+        }
+        function applyMarkupToBrand() {
+            if (!currentOrder) return;
+            const brand = markupBrandSelect.value;
+            const markupValue = parseFloat(markupValueInput.value);
+            if (!brand) {
+                alert('Выберите бренд');
+                return;
+            }
+            if (isNaN(markupValue)) {
+                alert('Введите корректное значение наценки/скидки');
+                return;
+            }
+            if (!currentOrder.brandMarkups) {
+                currentOrder.brandMarkups = {};
+            }
+            currentOrder.brandMarkups[brand] = markupValue;
+            updateDiscountInfo(calculateOrderTotal(currentOrder));
+            updateOrderTotal();
+            markupValueInput.value = '';
+            markupBrandSelect.value = '';
+        }
         // Вспомогательные функции
         function showAlert(container, message, type, autoHide = false) {
             container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            
             if (autoHide) {
                 setTimeout(() => {
                     container.innerHTML = '';
                 }, 3000);
             }
         }
-
         function updateStats() {
             document.getElementById('stats-products').textContent = priceList.length;
             document.getElementById('stats-orders').textContent = allOrders.length;
-            
             const totalAmount = allOrders.reduce((sum, order) => sum + calculateOrderTotal(order), 0);
             document.getElementById('stats-total').textContent = totalAmount.toFixed(2) + ' руб.';
-            
             const uniqueBrands = new Set(priceList.map(product => product.brand));
             document.getElementById('stats-brands').textContent = uniqueBrands.size;
         }
