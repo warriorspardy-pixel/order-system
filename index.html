@@ -1223,8 +1223,8 @@
             orderStructureDiv.innerHTML = '';
             totalAmountSpan.textContent = '0.00';
             discountInfoDiv.innerHTML = '';
-            orderListSection.style.display = 'block';
-            orderEditSection.style.display = 'none';
+            orderListSection.style.display = 'none';
+            orderEditSection.style.display = 'block';
             renderOrderStructure();
             updateBrandMarkupSelect();
         }
@@ -1622,6 +1622,9 @@
                         <button class="i-btn print-order" data-order-number="${order.number}">
                             <i class="fas fa-print"></i> Печать
                         </button>
+                        <button class="i-btn btn-warning duplicate-order" data-order-number="${order.number}">
+                            <i class="fas fa-copy"></i> Копировать
+                        </button>
                         <button class="i-btn btn-danger delete-order" data-order-number="${order.number}">
                             <i class="fas fa-trash"></i> Удалить
                         </button>
@@ -1641,6 +1644,17 @@
                 btn.addEventListener('click', function() {
                     const orderNumber = this.dataset.orderNumber;
                     printOrderFromList(orderNumber);
+                });
+            });
+            // Добавляем обработчики для копирования заказов
+            document.querySelectorAll('.duplicate-order').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderNumber = this.dataset.orderNumber;
+                    // Сначала загружаем заказ для копирования в currentOrder
+                    currentOrder = allOrders.find(o => o.number === orderNumber);
+                    if (currentOrder) {
+                        duplicateCurrentOrder(); // Вызываем существующую функцию дублирования
+                    }
                 });
             });
             // Добавляем обработчики для удаления заказов
@@ -2037,9 +2051,7 @@
                 if (!brands[product.brand][group]) {
                     brands[product.brand][group] = [];
                 }
-                brands[product.brand][group].forEach(product => {
-                    brands[product.brand][group].push(product);
-                });
+                brands[product.brand][group].push(product);
             });
             let html = '<div class="nomenclature-tree"><ul>';
             Object.keys(brands).sort().forEach(brand => {
