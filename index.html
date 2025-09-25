@@ -1223,8 +1223,8 @@
             orderStructureDiv.innerHTML = '';
             totalAmountSpan.textContent = '0.00';
             discountInfoDiv.innerHTML = '';
-            orderListSection.style.display = 'none';
-            orderEditSection.style.display = 'block';
+            orderListSection.style.display = 'block';
+            orderEditSection.style.display = 'none';
             renderOrderStructure();
             updateBrandMarkupSelect();
         }
@@ -1322,8 +1322,10 @@
                                     <th>Артикул</th>
                                     <th>Наименование</th>
                                     <th>Количество</th>
-                                    <th>Цена за ед.</th>
-                                    <th>Сумма</th>
+                                    <th>Ед. изм.</th>
+                                    <th>Цена за ед. (прайс)</th>
+                                    <th>Цена за ед. с наценкой</th>
+                                    <th>Сумма с наценкой</th>
                                     <th>Действие</th>
                                 </tr>
                             </thead>
@@ -1467,13 +1469,30 @@
             const tbody = document.getElementById(`positions-${suborderId}`);
             tbody.innerHTML = '';
             suborder.positions.forEach((position, index) => {
+                // Найдем товар в прайс-листе для получения единицы измерения и базовой цены
+                const productInPriceList = priceList.find(p => p.article === position.article);
+                const unit = productInPriceList ? productInPriceList.unit : 'шт.'; // Используем 'шт.' как fallback
+                const basePrice = productInPriceList ? productInPriceList.price : 0; // Базовая цена из прайс-листа
+
+                // Рассчитаем цену с наценкой/скидкой
+                let adjustedPrice = position.price; // Это текущая цена в позиции заказа, возможно, уже с наценкой
+                if (currentOrder && currentOrder.brandMarkups && productInPriceList) {
+                    const markup = currentOrder.brandMarkups[productInPriceList.brand] || 0;
+                    adjustedPrice = basePrice * (1 + markup / 100);
+                }
+
+                // Рассчитаем сумму с наценкой
+                const adjustedTotal = position.quantity * adjustedPrice;
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${position.article}</td>
                     <td>${position.name}</td>
                     <td>${position.quantity}</td>
-                    <td>${position.price.toFixed(2)}</td>
-                    <td>${position.total.toFixed(2)}</td>
+                    <td>${unit}</td> <!-- Новый столбец -->
+                    <td>${basePrice.toFixed(2)}</td> <!-- Новый столбец -->
+                    <td>${adjustedPrice.toFixed(2)}</td> <!-- Новый столбец -->
+                    <td>${adjustedTotal.toFixed(2)}</td> <!-- Новый столбец -->
                     <td>
                         <button class="i-btn btn-danger delete-position" data-suborder-id="${suborderId}" data-index="${index}">
                             <i class="fas fa-trash"></i>
@@ -1534,7 +1553,18 @@
             let total = 0;
             currentOrder.suborders.forEach(suborder => {
                 suborder.positions.forEach(position => {
-                    total += position.total;
+                    // Найдем товар в прайс-листе
+                    const product = priceList.find(p => p.article === position.article);
+                    if (product && currentOrder.brandMarkups) {
+                        // Рассчитаем цену с наценкой/скидкой для позиции
+                        const markup = currentOrder.brandMarkups[product.brand] || 0;
+                        const adjustedPrice = product.price * (1 + markup / 100);
+                        const adjustedTotal = position.quantity * adjustedPrice;
+                        total += adjustedTotal;
+                    } else {
+                        // Если наценка не применяется или товар не найден, используем старую сумму
+                        total += position.total;
+                    }
                 });
             });
             totalAmountSpan.textContent = total.toFixed(2);
@@ -1627,30 +1657,19 @@
                 order.suborders.forEach(suborder => {
                     if (suborder.positions) {
                         suborder.positions.forEach(position => {
-                            total += position.total || 0;
-                        });
-                    }
-                });
-            }
-            // Применяем наценки/скидки по брендам
-            if (order.brandMarkups) {
-                const brandTotals = {};
-                order.suborders.forEach(suborder => {
-                    suborder.positions.forEach(position => {
-                        const product = priceList.find(p => p.article === position.article);
-                        if (product) {
-                            if (!brandTotals[product.brand]) {
-                                brandTotals[product.brand] = 0;
+                            // Найдем товар в прайс-листе
+                            const product = priceList.find(p => p.article === position.article);
+                            if (product && order.brandMarkups) {
+                                // Рассчитаем цену с наценкой/скидкой для позиции
+                                const markup = order.brandMarkups[product.brand] || 0;
+                                const adjustedPrice = product.price * (1 + markup / 100);
+                                const adjustedTotal = position.quantity * adjustedPrice;
+                                total += adjustedTotal;
+                            } else {
+                                // Если наценка не применяется или товар не найден, используем старую сумму
+                                total += position.total;
                             }
-                            brandTotals[product.brand] += position.total;
-                        }
-                    });
-                });
-                Object.keys(order.brandMarkups).forEach(brand => {
-                    const markup = order.brandMarkups[brand];
-                    if (brandTotals[brand] && markup !== 0) {
-                        const markupAmount = brandTotals[brand] * (markup / 100);
-                        total += markupAmount;
+                        });
                     }
                 });
             }
@@ -1694,30 +1713,44 @@
                                 <th>Наименование</th>
                                 <th>Кол-во</th>
                                 <th>Ед. изм.</th>
-                                <th>Цена за ед.</th>
-                                <th>Сумма</th>
+                                <th>Цена за ед. (прайс)</th>
+                                <th>Цена за ед. с наценкой</th>
+                                <th>Сумма с наценкой</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
                 let suborderTotal = 0;
                 suborder.positions.forEach((position, posIndex) => {
-                    suborderTotal += position.total;
+                    const productInPriceList = priceList.find(p => p.article === position.article);
+                    const unit = productInPriceList ? productInPriceList.unit : 'шт.';
+                    const basePrice = productInPriceList ? productInPriceList.price : 0;
+
+                    let adjustedPrice = position.price; // Это текущая цена в позиции заказа, возможно, уже с наценкой
+                    if (order.brandMarkups && productInPriceList) {
+                        const markup = order.brandMarkups[productInPriceList.brand] || 0;
+                        adjustedPrice = basePrice * (1 + markup / 100);
+                    }
+
+                    const adjustedTotal = position.quantity * adjustedPrice;
+                    suborderTotal += adjustedTotal;
+
                     html += `
                         <tr>
                             <td>${posIndex + 1}</td>
                             <td>${position.article}</td>
                             <td>${position.name}</td>
                             <td>${position.quantity}</td>
-                            <td>шт.</td>
-                            <td>${position.price.toFixed(2)}</td>
-                            <td>${position.total.toFixed(2)}</td>
+                            <td>${unit}</td>
+                            <td>${basePrice.toFixed(2)}</td>
+                            <td>${adjustedPrice.toFixed(2)}</td>
+                            <td>${adjustedTotal.toFixed(2)}</td>
                         </tr>
                     `;
                 });
                 html += `
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
+                            <td colspan="7" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
                             <td style="font-weight: bold;">${suborderTotal.toFixed(2)}</td>
                         </tr>
                     </tbody>
@@ -2004,7 +2037,9 @@
                 if (!brands[product.brand][group]) {
                     brands[product.brand][group] = [];
                 }
-                brands[product.brand][group].push(product);
+                brands[product.brand][group].forEach(product => {
+                    brands[product.brand][group].push(product);
+                });
             });
             let html = '<div class="nomenclature-tree"><ul>';
             Object.keys(brands).sort().forEach(brand => {
@@ -2299,30 +2334,44 @@
                                 <th>Наименование</th>
                                 <th>Кол-во</th>
                                 <th>Ед. изм.</th>
-                                <th>Цена за ед.</th>
-                                <th>Сумма</th>
+                                <th>Цена за ед. (прайс)</th>
+                                <th>Цена за ед. с наценкой</th>
+                                <th>Сумма с наценкой</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
                 let suborderTotal = 0;
                 suborder.positions.forEach((position, posIndex) => {
-                    suborderTotal += position.total;
+                    const productInPriceList = priceList.find(p => p.article === position.article);
+                    const unit = productInPriceList ? productInPriceList.unit : 'шт.';
+                    const basePrice = productInPriceList ? productInPriceList.price : 0;
+
+                    let adjustedPrice = position.price; // Это текущая цена в позиции заказа, возможно, уже с наценкой
+                    if (currentOrder.brandMarkups && productInPriceList) {
+                        const markup = currentOrder.brandMarkups[productInPriceList.brand] || 0;
+                        adjustedPrice = basePrice * (1 + markup / 100);
+                    }
+
+                    const adjustedTotal = position.quantity * adjustedPrice;
+                    suborderTotal += adjustedTotal;
+
                     html += `
                         <tr>
                             <td>${posIndex + 1}</td>
                             <td>${position.article}</td>
                             <td>${position.name}</td>
                             <td>${position.quantity}</td>
-                            <td>шт.</td>
-                            <td>${position.price.toFixed(2)}</td>
-                            <td>${position.total.toFixed(2)}</td>
+                            <td>${unit}</td>
+                            <td>${basePrice.toFixed(2)}</td>
+                            <td>${adjustedPrice.toFixed(2)}</td>
+                            <td>${adjustedTotal.toFixed(2)}</td>
                         </tr>
                     `;
                 });
                 html += `
                         <tr>
-                            <td colspan="6" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
+                            <td colspan="7" style="text-align: right; font-weight: bold;">Итого по ${suborder.name}:</td>
                             <td style="font-weight: bold;">${suborderTotal.toFixed(2)}</td>
                         </tr>
                     </tbody>
@@ -2344,15 +2393,29 @@
             let allPositions = [];
             currentOrder.suborders.forEach(suborder => {
                 suborder.positions.forEach(position => {
-                    const product = priceList.find(p => p.article === position.article);
+                    const productInPriceList = priceList.find(p => p.article === position.article);
+                    const unit = productInPriceList ? productInPriceList.unit : 'шт.';
+                    const basePrice = productInPriceList ? productInPriceList.price : 0;
+
+                    let adjustedPrice = position.price; // Это текущая цена в позиции заказа, возможно, уже с наценкой
+                    if (currentOrder.brandMarkups && productInPriceList) {
+                        const markup = currentOrder.brandMarkups[productInPriceList.brand] || 0;
+                        adjustedPrice = basePrice * (1 + markup / 100);
+                    }
+
+                    const adjustedTotal = position.quantity * adjustedPrice;
+
                     allPositions.push({
                         'Подзаказ': suborder.name,
                         'Артикул': position.article,
                         'Наименование': position.name,
                         'Количество': position.quantity,
-                        'Ед. изм.': product ? product.unit : '',
-                        'Цена за ед.': position.price,
-                        'Сумма': position.total
+                        'Ед. изм.': unit, // Новый столбец
+                        'Цена за ед. (прайс)': basePrice.toFixed(2), // Новый столбец
+                        'Цена за ед. с наценкой': adjustedPrice.toFixed(2), // Новый столбец
+                        'Сумма с наценкой': adjustedTotal.toFixed(2), // Новый столбец
+                        'Цена за ед.': position.price, // Оставляем для обратной совместимости или убираем
+                        'Сумма': position.total // Оставляем для обратной совместимости или убираем
                     });
                 });
             });
